@@ -32,17 +32,19 @@ def split_data(train_split, val_split, dir_list, annotations_list):
     for dir in dir_list:
         if dir.name in train_split:
             dir.rename(Path(DATASET_PATH) / 'frames' / 'train' / dir.name)
-        elif dir.name in val_split:
+        elif dir.name in val_split[len(val_split)//2:]:
             dir.rename(Path(DATASET_PATH) / 'frames' / 'val' / dir.name)
-        else:
-            dir.rmtree()
+        elif dir.name in val_split[:len(val_split)//2]:
+            dir.rename(Path(DATASET_PATH) / 'frames' / 'test' / dir.name)
 
     # split annotations
     for annotation in annotations_list:
         if annotation.name.replace('.json', '') in train_split:
             annotation.rename(Path(DATASET_PATH) / 'annotations' / 'train' / annotation.name)
-        elif annotation.name.replace('.json', '') in val_split:
+        elif annotation.name.replace('.json', '') in val_split[len(val_split)//2:]:
             annotation.rename(Path(DATASET_PATH) / 'annotations' / 'val' / annotation.name)
+        elif annotation.name.replace('.json', '') in val_split[:len(val_split)//2]:
+            annotation.rename(Path(DATASET_PATH) / 'annotations' / 'test' / annotation.name)
 
 
 def main():

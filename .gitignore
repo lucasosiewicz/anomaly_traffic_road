@@ -1,3 +1,4 @@
 datasets
 .venv
 .vscode
+lightning_logs

@@ -2,27 +2,33 @@ import torch
 from torch import nn
 import lightning as L
 from torch import optim
+from torch.utils.data import TensorDataset, DataLoader
 
 
 class Encoder(nn.Module):
     def __init__(self, input_shape):
         super().__init__()
 
-        self.conv1 = nn.Conv2d(input_shape[0], 512, kernel_size=11, padding=5)
-        self.conv2 = nn.Conv2d(512, 256, kernel_size=5, padding=2)
-        self.conv3 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.conv_c1 = nn.Conv2d(input_shape, 512, 15, stride=4)
+        self.bn_c1 = nn.BatchNorm2d(512)
+        self.relu_c1 = nn.ReLU(inplace=True)
+        self.pool_c1 = nn.MaxPool2d(2)
 
-        self.relu = nn.ReLU()
-        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv_c2 = nn.Conv2d(512, 256, 4, stride=1)
+        self.bn_c2 = nn.BatchNorm2d(256)
+        self.relu_c2 = nn.ReLU(inplace=True)
+        self.pool_c2 = nn.MaxPool2d(2)
+
+        self.conv_c3 = nn.Conv2d(256, 128, 3, stride=1)
+        self.bn_c3= nn.BatchNorm2d(128)
+        self.relu_c3 = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        x = self.conv2(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-        x = self.conv3(x)
+        x = self.relu_c1(self.bn_c1(self.conv_c1(x)))
+        x = self.pool_c1(x)
+        x = self.relu_c2(self.bn_c2(self.conv_c2(x)))
+        x = self.pool_c2(x)
+        x = self.relu_c3(self.bn_c3(self.conv_c3(x)))
 
         return x
 
@@ -30,25 +36,26 @@ class Decoder(nn.Module):
     def __init__(self, input_shape):
         super().__init__()
 
-        self.deconv1 = nn.ConvTranspose2d(128, 128, kernel_size=3, padding=1)
-        self.deconv2 = nn.ConvTranspose2d(256, 256, kernel_size=3, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(512, 512, kernel_size=5, padding=2)
-        self.deconv4 = nn.ConvTranspose2d(512, input_shape[0], kernel_size=11, padding=5)
+        self.deconv_d3 = nn.ConvTranspose2d(128, 256, 3, stride=1)
+        self.bn_d3_1 = nn.BatchNorm2d(256)
+        self.relu_d3 = nn.ReLU(inplace=True)
+        self.uppool_d3 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.bn_d3_2 = nn.BatchNorm2d(256)
 
-        self.relu = nn.ReLU()
-        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.deconv_d2 = nn.ConvTranspose2d(256, 512, 4, stride=1)
+        self.bn_d2_1 = nn.BatchNorm2d(512)
+        self.relu_d2 = nn.ReLU(inplace=True)
+        self.uppool_d2 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.bn_d2_2 = nn.BatchNorm2d(512)
+
+        self.deconv_d1 = nn.ConvTranspose2d(512, input_shape, 15, stride=4)
 
     def forward(self, x):
-        x = self.deconv1(x)
-        x = self.relu(x)
-        x = self.upsample(x)
-        x = self.deconv2(x)
-        x = self.relu(x)
-        x = self.upsample(x)
-        x = self.deconv3(x)
-        x = self.relu(x)
-        x = self.upsample(x)
-        x = self.deconv4(x)
+        x = self.relu_d3(self.bn_d3_1(self.deconv_d3(x)))
+        x = self.bn_d3_2(self.uppool_d3(x))
+        x = self.relu_d2(self.bn_d2_1(self.deconv_d2(x)))
+        x = self.bn_d2_2(self.uppool_d2(x))
+        x = self.deconv_d1(x)
 
         return x
     
@@ -67,23 +74,20 @@ class ConvAE(L.LightningModule):
         return x_hat
 
     def training_step(self, batch, batch_idx):
-        x, _ = batch
-        x = x.view(x.size(0), -1)
+        x = batch
         x_hat = self(x)
         loss = nn.functional.mse_loss(x_hat, x)
         self.log("train_loss", loss)
         return loss
     
     def validation_step(self, batch, batch_idx):
-        x, _ = batch
-        x = x.view(x.size(0), -1)
+        x = batch
         x_hat = self(x)
         loss = nn.functional.mse_loss(x_hat, x)
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx):
-        x, _ = batch
-        x = x.view(x.size(0), -1)
+        x = batch
         x_hat = self(x)
         loss = nn.functional.mse_loss(x_hat, x)
         self.log("test_loss", loss)
@@ -91,3 +95,4 @@ class ConvAE(L.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
+    

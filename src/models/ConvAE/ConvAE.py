@@ -1,8 +1,6 @@
-import torch
 from torch import nn
 import lightning as L
 from torch import optim
-from torch.utils.data import TensorDataset, DataLoader
 
 
 class Encoder(nn.Module):
@@ -61,7 +59,7 @@ class Decoder(nn.Module):
     
 
 class ConvAE(L.LightningModule):
-    def __init__(self, encoder, decoder, input_shape, lr, transform=None):
+    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=3, lr=1e-3):
         super().__init__()
         self.encoder = encoder(input_shape)
         self.decoder = decoder(input_shape)

@@ -2,3 +2,4 @@ datasets
 .venv
 .vscode
 lightning_logs
+__pycache__

@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 import lightning as L
 from torch import optim
@@ -34,11 +35,7 @@ class Decoder(nn.Module):
     def __init__(self, input_shape):
         super().__init__()
 
-        self.deconv_d3 = nn.ConvTranspose2d(128, 256, 3, stride=1)
-        self.bn_d3_1 = nn.BatchNorm2d(256)
-        self.relu_d3 = nn.ReLU(inplace=True)
-        self.uppool_d3 = nn.Upsample(scale_factor=2, mode='nearest')
-        self.bn_d3_2 = nn.BatchNorm2d(256)
+        self.deconv_d1 = nn.ConvTranspose2d(512, input_shape, 15, stride=4)
 
         self.deconv_d2 = nn.ConvTranspose2d(256, 512, 4, stride=1)
         self.bn_d2_1 = nn.BatchNorm2d(512)
@@ -46,7 +43,11 @@ class Decoder(nn.Module):
         self.uppool_d2 = nn.Upsample(scale_factor=2, mode='nearest')
         self.bn_d2_2 = nn.BatchNorm2d(512)
 
-        self.deconv_d1 = nn.ConvTranspose2d(512, input_shape, 15, stride=4)
+        self.deconv_d3 = nn.ConvTranspose2d(128, 256, 3, stride=1)
+        self.bn_d3_1 = nn.BatchNorm2d(256)
+        self.relu_d3 = nn.ReLU(inplace=True)
+        self.uppool_d3 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.bn_d3_2 = nn.BatchNorm2d(256)
 
     def forward(self, x):
         x = self.relu_d3(self.bn_d3_1(self.deconv_d3(x)))
@@ -61,10 +62,17 @@ class Decoder(nn.Module):
 class ConvAE(L.LightningModule):
     def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=3, lr=1e-3):
         super().__init__()
+
+        torch.set_float32_matmul_precision('high')
+
         self.encoder = encoder(input_shape)
         self.decoder = decoder(input_shape)
 
         self.lr = lr
+        self.criterion = nn.MSELoss()
+
+        self.reconstruction_error = None
+        self.targets = None
 
     def forward(self, x):
         z = self.encoder(x)
@@ -72,23 +80,41 @@ class ConvAE(L.LightningModule):
         return x_hat
 
     def training_step(self, batch, batch_idx):
-        x = batch
+        x, _ = batch
         x_hat = self(x)
-        loss = nn.functional.mse_loss(x_hat, x)
+        loss = self.criterion(x_hat, x)
         self.log("train_loss", loss)
         return loss
     
     def validation_step(self, batch, batch_idx):
-        x = batch
+        x, y = batch
         x_hat = self(x)
-        loss = nn.functional.mse_loss(x_hat, x)
+        loss = self.criterion(x_hat, x)
         self.log("val_loss", loss)
+        return loss
 
     def test_step(self, batch, batch_idx):
-        x = batch
+        x, y = batch
         x_hat = self(x)
-        loss = nn.functional.mse_loss(x_hat, x)
-        self.log("test_loss", loss)
+
+        batch_errors = []
+        for xx, xx_hat in zip(x, x_hat):
+            loss = self.criterion(xx, xx_hat)
+            batch_errors.append(loss)
+
+        if self.reconstruction_error is None:
+            self.reconstruction_error = torch.tensor(batch_errors)
+        else:
+            self.reconstruction_error = torch.cat([self.reconstruction_error, torch.tensor(batch_errors)])
+
+        if self.targets is None:
+            self.targets = y
+        else:
+            self.targets = torch.cat([self.targets, y])
+
+        self.log("test_loss", torch.mean(torch.tensor(self.reconstruction_error)))
+
+        return loss
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)

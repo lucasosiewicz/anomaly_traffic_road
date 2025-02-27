@@ -3,3 +3,4 @@ datasets
 .vscode
 lightning_logs
 __pycache__
+mlruns

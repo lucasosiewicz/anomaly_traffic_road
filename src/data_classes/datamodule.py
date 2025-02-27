@@ -3,15 +3,15 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 class DataModule(LightningDataModule):
-    def __init__(self, batch_size=24):
+    def __init__(self, path_to_data, batch_size=24):
         super().__init__()
         self.batch_size = batch_size
+        self.path_to_data = path_to_data
 
     def setup(self, stage=None):
-        path_to_data = r"D:\MAGISTERKA\anomaly_traffic_road\datasets\DoTA"
-        self.train_dataset = Dataset(path_to_data, 'train')
-        self.val_dataset = Dataset(path_to_data, 'val')
-        self.test_dataset = Dataset(path_to_data, 'test')
+        self.train_dataset = Dataset(self.path_to_data, 'train')
+        self.val_dataset = Dataset(self.path_to_data, 'val')
+        self.test_dataset = Dataset(self.path_to_data, 'test')
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -24,7 +24,7 @@ class DataModule(LightningDataModule):
     
 
 if __name__ == '__main__':
-    data_module = DataModule()
+    data_module = DataModule(r'D:\MAGISTERKA\anomaly_traffic_road\datasets\DoTA')
     data_module.setup()
     train_loader = data_module.train_dataloader()
     val_loader = data_module.val_dataloader()

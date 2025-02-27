@@ -9,8 +9,11 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Dataset(Dataset):
     def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227)):
+
+        assert which_set in ['train', 'val', 'test'], f"which_set must be one of ['train', 'val', 'test'], got {which_set}"
+
         self.path_to_data = Path(path_to_data) # datasets\DoTA
-        self.data = self._load_data(which_set) # dataset\DoTA\frames
+        self.data, self.labels = self._load_data(which_set) # dataset\DoTA\frames
         self.resize_target = resize_target
 
     def __len__(self):
@@ -21,7 +24,7 @@ class Dataset(Dataset):
         img = torch.tensor(img).permute(2, 0, 1).float().to(DEVICE) / 255
         img = resize(img, self.resize_target)
 
-        return img
+        return img, self.labels[idx]
         
 
     def _load_data(self, which_set: str):
@@ -35,6 +38,7 @@ class Dataset(Dataset):
                               in (self.path_to_data / 'annotations' / which_set).rglob('*.json')])
         
         data = []
+        targets = None
 
         for video_path, label_path in zip(video_paths, label_paths):
             video_name = video_path.name
@@ -50,11 +54,20 @@ class Dataset(Dataset):
             # Filter the frames
             video_path = video_path / 'images'
             frames = [frame for frame in video_path.rglob('*.jpg')]
-            frames = list(set(frames) - set(frames[start:end]))
+            labels = torch.cat([torch.zeros(start), torch.ones(end - start), torch.zeros(len(frames) - end)])
+            if which_set == 'train':
+                frames = list(set(frames) - set(frames[start:end]))
+                labels = torch.zeros(len(frames))
 
             data.extend(frames)
+            if targets is None:
+                targets = labels
+            else:
+                targets = torch.cat([targets, labels])
 
-        return data
+            break
+
+        return data, targets
     
 
 

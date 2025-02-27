@@ -4,3 +4,4 @@ datasets
 lightning_logs
 __pycache__
 mlruns
+mlartifacts

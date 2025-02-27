@@ -1,5 +1,6 @@
-from visualization_functions import draw_loss_curves, draw_historgram_of_errors
+from visualization_functions import draw_loss_curves, draw_historgram_of_errors, draw_confusion_matrix
 from callbacks.PrintMetricsCallback import PrintMetricsCallback
+from counting_functions import count_best_threshold
 from data_classes.datamodule import DataModule
 from models.ConvAE.ConvAE import ConvAE
 
@@ -39,7 +40,16 @@ def main():
         mlflow.log_artifact('src/plots/loss_curves.png')
         mlflow.log_artifact('src/plots/histogram_of_errors.png')
 
+        best_threshold, acc, precision, recall, f1 = count_best_threshold(model.reconstruction_error, model.targets)
 
+        draw_confusion_matrix(model.reconstruction_error, model.targets, best_threshold, save_path='src/plots')
+        mlflow.log_artifact('src/plots/confusion_matrix.png')
+
+        mlflow.log_param('best_threshold', best_threshold.item())
+        mlflow.log_metrics({'accuracy': acc, 
+                            'precision': precision, 
+                            'recall': recall, 
+                            'f1': f1})
 
 
 if __name__ == '__main__':

@@ -60,7 +60,7 @@ class Decoder(nn.Module):
     
 
 class ConvAE(L.LightningModule):
-    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=3, lr=1e-3):
+    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=3, lr=0.01):
         super().__init__()
 
         torch.set_float32_matmul_precision('high')

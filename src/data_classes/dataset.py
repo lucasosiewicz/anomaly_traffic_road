@@ -20,7 +20,9 @@ class Dataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img = cv2.imread(str(self.data[idx]), cv2.IMREAD_COLOR_RGB)
+        img = cv2.imread(str(self.data[idx]), cv2.IMREAD_GRAYSCALE)
+        if len(img.shape) == 2:
+            img = torch.tensor(img).unsqueeze(2)
         img = torch.tensor(img).permute(2, 0, 1).float().to(DEVICE) / 255
         img = resize(img, self.resize_target)
 
@@ -55,7 +57,7 @@ class Dataset(Dataset):
             video_path = video_path / 'images'
             frames = [frame for frame in video_path.rglob('*.jpg')]
             labels = torch.cat([torch.zeros(start), torch.ones(end - start), torch.zeros(len(frames) - end)])
-            if which_set == 'train':
+            if which_set in ['train', 'val']:
                 frames = list(set(frames) - set(frames[start:end]))
                 labels = torch.zeros(len(frames))
 
@@ -64,8 +66,6 @@ class Dataset(Dataset):
                 targets = labels
             else:
                 targets = torch.cat([targets, labels])
-
-            break
 
         return data, targets
     

@@ -12,11 +12,11 @@ import mlflow
 import torch
 
 DEVICE = 'gpu' if torch.cuda.is_available() else 'cpu'
-EPOCHS = 3
+EPOCHS = 50
 CALLBACKS = [PrintMetricsCallback(), 
-             EarlyStopping(monitor='val_loss', patience=3, mode='min'), 
-             ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1, dirpath='src/models/ConvAE/checkpoints/', filename='ConvAE-{epoch}-{val_loss:.2f}')]
-LOGGER = MLFlowLogger(experiment_name='DoTA-dataset', run_name='ConvAE-RGB', tracking_uri='http://localhost:5000', log_model=True)
+             EarlyStopping(monitor='val_loss', patience=7, mode='min'), 
+             ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1, dirpath='src/models/ConvAE/checkpoints/', filename='ConvAE-gray-{epoch}-{val_loss:.2f}')]
+LOGGER = MLFlowLogger(experiment_name='DoTA-dataset', run_name='ConvAE-Grayscale', tracking_uri='http://localhost:5000', log_model=True)
 
 def main():
     path_to_data = r"D:\MAGISTERKA\anomaly_traffic_road\datasets\DoTA"
@@ -24,7 +24,7 @@ def main():
     data_module = DataModule(path_to_data)
     data_module.setup()
 
-    model = ConvAE()
+    model = ConvAE(input_shape=1)
     trainer = Trainer(max_epochs=EPOCHS, accelerator=DEVICE, logger=LOGGER, callbacks=CALLBACKS)
     
     with mlflow.start_run(run_id=LOGGER.run_id):

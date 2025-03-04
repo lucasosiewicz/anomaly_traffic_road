@@ -85,14 +85,14 @@ class ConvAE(L.LightningModule):
         x_hat = self(x)
         loss = self.criterion(x_hat, x)
         self.log("train_loss", loss.mean(), on_step=True, on_epoch=True, sync_dist=True)
-        return loss
+        return loss.mean()
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
         loss = self.criterion(x_hat, x)
         self.log("val_loss", loss.mean(), on_step=True, on_epoch=True, sync_dist=True)
-        return loss
+        return loss.mean()
 
     def test_step(self, batch, batch_idx):
         x, y = batch

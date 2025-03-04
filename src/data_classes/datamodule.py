@@ -14,13 +14,28 @@ class DataModule(LightningDataModule):
         self.test_dataset = Dataset(self.path_to_data, 'test')
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, 
+                          batch_size=self.batch_size, 
+                          shuffle=True, 
+                          num_workers=10, 
+                          pin_memory=True,
+                          persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(self.val_dataset, 
+                          batch_size=self.batch_size, 
+                          shuffle=False, 
+                          num_workers=10, 
+                          pin_memory=True,
+                          persistent_workers=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(self.test_dataset, 
+                          batch_size=self.batch_size, 
+                          shuffle=False, 
+                          num_workers=10, 
+                          pin_memory=True, 
+                          persistent_workers=True)
     
 
 if __name__ == '__main__':

@@ -49,7 +49,6 @@ class ConvDecoder(nn.Module):
                               stride=(4,4),
                               padding=0)
         self.sigmoid = nn.Sigmoid()
-        #Hout = (Hin−1)×stride[0] − 2×padding[0] + dilation[0]×(kernel_size[0]−1) + output_padding[0] + 1
     
     def forward(self, X):
         '''X: (batch_size, C, H, W)'''
@@ -57,7 +56,6 @@ class ConvDecoder(nn.Module):
         X = self.bn1(X)
         X = self.relu(X)
         X = self.deconv2(X)
-        # X = self.sigmoid(X)
         return X
 
 class ConvLSTMEncoder(nn.Module):

@@ -11,8 +11,8 @@ from lightning import Trainer
 import mlflow
 import torch
 
-DEVICE = 'gpu' if torch.cuda.is_available() else 'cpu'
-EPOCHS = 50
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+EPOCHS = 100
 CALLBACKS = [PrintMetricsCallback(), 
              EarlyStopping(monitor='val_loss', patience=7, mode='min'), 
              ModelCheckpoint(monitor='val_loss', mode='min', save_top_k=1, dirpath='src/models/ConvAE/checkpoints/', filename='ConvAE-gray-{epoch}-{val_loss:.2f}')]

@@ -34,8 +34,6 @@ class ConvLSTMED(nn.Module):
             in_channels = 2
         self.spatial_encoder = ConvEncoder(in_channels=in_channels, out_channels=64)
         self.spatial_decoder = ConvDecoder(in_channels=64, out_channels=in_channels)
-        # self.temporal_encoder = ConvLSTMEncoder(self.args)
-        # self.temporal_decoder = ConvLSTMDecoder(self.args)
         self.temporal_encoder = ConvLSTM(input_size=(26,26), 
                                          input_dim=64, 
                                          hidden_dim=[64, 32, 64], 

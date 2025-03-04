@@ -20,10 +20,10 @@ class Dataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img = cv2.imread(str(self.data[idx]), cv2.IMREAD_GRAYSCALE)
+        img = torch.tensor(cv2.imread(str(self.data[idx]), cv2.IMREAD_GRAYSCALE))
         if len(img.shape) == 2:
-            img = torch.tensor(img).unsqueeze(2)
-        img = torch.tensor(img).permute(2, 0, 1).float().to(DEVICE) / 255
+            img = img.unsqueeze(2)
+        img = img.permute(2, 0, 1).float() / 255.
         img = resize(img, self.resize_target)
 
         return img, self.labels[idx]

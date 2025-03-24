@@ -2,6 +2,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
+import torch
 
 def draw_loss_curves(train_loss, val_loss, save_path=None):
 
@@ -43,10 +44,15 @@ def draw_historgram_of_errors(errors, labels, save_path=None):
         plt.savefig(Path(save_path) / 'histogram_of_errors.png')
 
 
-def draw_confusion_matrix(errors, targets, threshold, save_path=None):
+def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsupervised=True):
 
-    y_true = targets.cpu().numpy()
-    y_pred = np.where(errors > threshold, 1, 0)
+    if unsupervised:
+        y_true = targets.cpu().numpy()
+        y_pred = np.where(errors > threshold, 1, 0)
+    
+    else:
+        y_true = targets.cpu().numpy()
+        y_pred = torch.argmax(errors, dim=1).cpu().numpy()
 
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 7))

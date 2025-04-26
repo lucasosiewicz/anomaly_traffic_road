@@ -37,4 +37,4 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
         recall = recall_score(targets, reconstruction_error)
         f1 = f1_score(targets, reconstruction_error)
 
-        return accuracy, precision, recall, f1
+        return None, accuracy, precision, recall, f1

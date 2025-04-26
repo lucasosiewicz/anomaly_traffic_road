@@ -5,3 +5,7 @@ lightning_logs
 __pycache__
 mlruns
 mlartifacts
+src/models/ConvAE/checkpoints
+src/models/ResNet/checkpoints
+src/models/ResNetLSTM/checkpoints
+src/models/LargerConvAE/checkpoints

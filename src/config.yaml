@@ -1,0 +1,21 @@
+data:
+  path: "D:\\MAGISTERKA\\anomaly_traffic_road\\datasets\\DoTA"
+  batch_size: 64
+  sequence_length: 4
+  stride: 1
+model:
+  name: "LargerConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE
+trainer:
+  epochs: 100
+  device: "cuda" # 'cuda', 'cpu', or 'auto'
+logging:
+  experiment_name: "DoTA-dataset"
+  run_name: "LargerConvAE-Grayscale"
+  tracking_uri: "http://localhost:5000"
+  log_model: True
+  checkpoint_dir: "src/models/LargerConvAE/checkpoints/"
+  checkpoint_filename: "LargerConvAE-Grayscale-{epoch}-{val_loss:.2f}"
+callbacks:
+  early_stopping_patience: 3
+evaluation:
+  plot_save_path: "src/plots"

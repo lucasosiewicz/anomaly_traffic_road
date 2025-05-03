@@ -6,7 +6,7 @@ import torchvision.models as models
 
 
 class ResNet(pl.LightningModule):
-    def __init__(self, input_shape=1, num_classes=2, learning_rate=0.0005, transform=None, freeze=True):
+    def __init__(self, input_shape=1, num_classes=6, learning_rate=0.0005, transform=None, freeze=True):
         super(ResNet, self).__init__()
         self.save_hyperparameters()
 

@@ -61,7 +61,7 @@ class Decoder(nn.Module):
     
 
 class ConvAE(L.LightningModule):
-    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=3, lr=0.01):
+    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=1, learning_rate=0.001):
         super().__init__()
 
         torch.set_float32_matmul_precision('high')
@@ -69,7 +69,7 @@ class ConvAE(L.LightningModule):
         self.encoder = encoder(input_shape)
         self.decoder = decoder(input_shape)
 
-        self.lr = lr
+        self.learning_rate = learning_rate
         self.criterion = nn.MSELoss(reduction='none').to(self.device)
 
         self.reconstruction_error = []
@@ -113,6 +113,6 @@ class ConvAE(L.LightningModule):
         self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
         return {'optimizer': optimizer}
     

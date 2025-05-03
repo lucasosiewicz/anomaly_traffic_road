@@ -13,7 +13,7 @@ import torch
 import yaml  # Import YAML library
 
 # Function to load config
-def load_config(config_path='config.yaml'):
+def load_config(config_path='src/config.yaml'):
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
@@ -29,6 +29,7 @@ def main():
     model_name = config['model']['name']
     epochs = config['trainer']['epochs']
     device = config['trainer']['device']
+    learning_rate = config['trainer']['learning_rate']
     experiment_name = config['logging']['experiment_name']
     run_name = config['logging']['run_name']
     tracking_uri = config['logging']['tracking_uri']
@@ -44,7 +45,7 @@ def main():
         resolved_device = device
 
     # Get model and related flags
-    model, is_unsupervised, is_sequence = get_model(model_name)
+    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate)
 
     # Setup Callbacks
     callbacks = [

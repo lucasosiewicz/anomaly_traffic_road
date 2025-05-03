@@ -82,9 +82,9 @@ class DataModule(LightningDataModule):
 
     def setup(self, stage=None):
         if self.unsupervised:
-            self.train_dataset = UnsupervisedDataset(self.path_to_data, 'train')
-            self.val_dataset = UnsupervisedDataset(self.path_to_data, 'val')
-            self.test_dataset = UnsupervisedDataset(self.path_to_data, 'test')
+            self.train_dataset = UnsupervisedDataset(self.path_to_data, 'train', resize_target=(227, 227))
+            self.val_dataset = UnsupervisedDataset(self.path_to_data, 'val', resize_target=(227, 227))
+            self.test_dataset = UnsupervisedDataset(self.path_to_data, 'test', resize_target=(227, 227))
         else:
             if self.is_sequence:
                 self.train_dataset = VideoDataset(

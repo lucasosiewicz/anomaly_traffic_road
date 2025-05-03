@@ -49,19 +49,24 @@ def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsuperv
     if unsupervised:
         y_true = targets.cpu().numpy()
         y_pred = np.where(errors > threshold, 1, 0)
+        labels = ['normal', 'anomaly']
+        num_classes = 2
     
     else:
         y_true = targets.cpu().numpy()
         y_pred = torch.argmax(errors, dim=1).cpu().numpy()
+        # Zakładamy, że klasy są numerowane od 0 do N-1
+        num_classes = max(y_true.max(), y_pred.max()) + 1 
+        labels = [str(i) for i in range(num_classes)]
 
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 7))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
     plt.title('Confusion Matrix')
     plt.colorbar()
-    tick_marks = np.arange(2)
-    plt.xticks(tick_marks, ['normal', 'anomaly'], rotation=45)
-    plt.yticks(tick_marks, ['normal', 'anomaly'])
+    tick_marks = np.arange(num_classes)
+    plt.xticks(tick_marks, labels, rotation=45)
+    plt.yticks(tick_marks, labels)
 
     fmt = 'd'
     thresh = cm.max() / 2.

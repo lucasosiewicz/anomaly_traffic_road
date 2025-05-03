@@ -18,7 +18,7 @@ class SupervisedDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        img = torch.tensor(cv2.imread(str(self.images[idx]), cv2.IMREAD_GRAYSCALE))
+        img = torch.tensor(cv2.imread(str(self.images[idx]), cv2.IMREAD_GRAYSCALE)) # type: ignore
         if len(img.shape) == 2:
             img = img.unsqueeze(2)
         img = img.permute(2, 0, 1).float() / 255.
@@ -62,10 +62,28 @@ class SupervisedDataset(Dataset):
                     if not image_path.exists():
                         continue
 
-                    if accident_id != 0:
+                    # Mapowanie klas
+                    original_accident_id = label.get('accident_id', -1)
+                    
+                    if original_accident_id == 0:
+                        mapped_id = 0
+                    elif original_accident_id in [1, 2, 3, 4, 5]:
+                        mapped_id = 1
+                    elif original_accident_id == 6:
+                        mapped_id = 2
+                    elif original_accident_id == 7:
+                        mapped_id = 3
+                    elif original_accident_id in [8, 9]:
+                        mapped_id = 4
+                    elif original_accident_id == 10:
+                        mapped_id = 5
+                    else: # Pomiń inne etykiety (np. < 0 lub > 10)
+                         continue
+
+                    if mapped_id != 0:
                         seen_anomaly_in_file = True
                         temp_images_for_file.append(image_path)
-                        temp_targets_for_file.append(accident_id)
+                        temp_targets_for_file.append(mapped_id)
                     else:
                         if seen_anomaly_in_file:
                             break

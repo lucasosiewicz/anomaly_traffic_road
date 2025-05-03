@@ -33,8 +33,8 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
     else:
         reconstruction_error = torch.argmax(reconstruction_error, axis=1).cpu()
         accuracy = accuracy_score(targets, reconstruction_error)
-        precision = precision_score(targets, reconstruction_error)
-        recall = recall_score(targets, reconstruction_error)
-        f1 = f1_score(targets, reconstruction_error)
+        precision = precision_score(targets, reconstruction_error, average='macro')
+        recall = recall_score(targets, reconstruction_error, average='macro')
+        f1 = f1_score(targets, reconstruction_error, average='macro')
 
         return None, accuracy, precision, recall, f1

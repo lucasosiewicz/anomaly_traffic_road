@@ -36,11 +36,11 @@ class ResNet(pl.LightningModule):
         )
 
         # Define a loss function and metric
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights))
         if num_classes == 2:
             self.accuracy = Accuracy(task="binary")
         else:
-            self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, class_weights=class_weights)
+            self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
         # Container for predictions
         self.reconstruction_error = []

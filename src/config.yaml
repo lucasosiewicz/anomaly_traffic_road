@@ -5,11 +5,11 @@ data:
   stride: 1
 model:
   name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE
+  class_weights: [1.87, 3.05, 71.5, 124.48, 9.72, 87.74]
 trainer:
   epochs: 100
   device: "cuda" # 'cuda', 'cpu', or 'auto'
   learning_rate: 0.001
-  class_weights: [1.87, 3.05, 71.5, 124.48, 9.72, 87.74]
 logging:
   experiment_name: "DoTA-dataset"
   run_name: "ResNet-Grayscale-mapped-class-weights"

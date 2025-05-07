@@ -27,6 +27,7 @@ def main():
     sequence_length = config['data']['sequence_length']
     stride = config['data']['stride']
     model_name = config['model']['name']
+    class_weights = config['model']['class_weights']
     epochs = config['trainer']['epochs']
     device = config['trainer']['device']
     learning_rate = config['trainer']['learning_rate']
@@ -36,7 +37,6 @@ def main():
     log_model_flag = config['logging']['log_model']
     checkpoint_dir = config['logging']['checkpoint_dir']
     checkpoint_filename = config['logging']['checkpoint_filename']
-    class_weights = config['logging']['class_weights']
     early_stopping_patience = config['callbacks']['early_stopping_patience']
 
     # Determine device

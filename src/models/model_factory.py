@@ -5,11 +5,11 @@ from .ResNet.ResNet import ResNet
 from .ResNetLSTM.ResNetLSTM import ResNetLSTM
 from .LargerConvAE.LargerConvAE import LargerConvAE
 
-def get_model(model_name: str, learning_rate: float) -> tuple[nn.Module, bool, bool]:
+def get_model(model_name: str, learning_rate: float, class_weights: list[float]) -> tuple[nn.Module, bool, bool]:
     if model_name == 'ConvAE':
         return ConvAE(learning_rate=learning_rate), True, False
     elif model_name == 'ResNet':
-        return ResNet(learning_rate=learning_rate), False, False
+        return ResNet(learning_rate=learning_rate, class_weights=class_weights), False, False
     elif model_name == 'ResNetLSTM':
         return ResNetLSTM(learning_rate=learning_rate), False, True
     elif model_name == 'LargerConvAE':

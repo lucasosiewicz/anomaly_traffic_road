@@ -36,6 +36,7 @@ def main():
     log_model_flag = config['logging']['log_model']
     checkpoint_dir = config['logging']['checkpoint_dir']
     checkpoint_filename = config['logging']['checkpoint_filename']
+    class_weights = config['logging']['class_weights']
     early_stopping_patience = config['callbacks']['early_stopping_patience']
 
     # Determine device
@@ -45,7 +46,7 @@ def main():
         resolved_device = device
 
     # Get model and related flags
-    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate)
+    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights)
 
     # Setup Callbacks
     callbacks = [

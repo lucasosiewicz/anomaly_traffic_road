@@ -6,7 +6,7 @@ import torchvision.models as models
 
 
 class ResNet(pl.LightningModule):
-    def __init__(self, input_shape=1, num_classes=6, learning_rate=0.0005, transform=None, freeze=True):
+    def __init__(self, input_shape=1, num_classes=6, learning_rate=0.0005, transform=None, freeze=True, class_weights=[1] * 6):
         super(ResNet, self).__init__()
         self.save_hyperparameters()
 
@@ -15,6 +15,7 @@ class ResNet(pl.LightningModule):
         self.transform = transform
         self.learning_rate = learning_rate
         self.input_shape = input_shape
+        self.class_weights = class_weights
 
         self.model = models.resnet18(weights='DEFAULT')
 
@@ -39,7 +40,7 @@ class ResNet(pl.LightningModule):
         if num_classes == 2:
             self.accuracy = Accuracy(task="binary")
         else:
-            self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+            self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, class_weights=class_weights)
 
         # Container for predictions
         self.reconstruction_error = []

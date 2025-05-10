@@ -4,19 +4,20 @@ data:
   sequence_length: 4
   stride: 1
 model:
-  name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE
-  class_weights: [1.87, 3.05, 71.5, 124.48, 9.72, 87.74]
+  name: "LargerConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE
+  class_weights: [1,1,1,1,1,1]
+  weight_decay: 0
 trainer:
   epochs: 100
   device: "cuda" # 'cuda', 'cpu', or 'auto'
   learning_rate: 0.001
 logging:
   experiment_name: "DoTA-dataset"
-  run_name: "ResNet-Grayscale-mapped-class-weights"
+  run_name: "LargerConvAE-Grayscale-V2E"
   tracking_uri: "http://localhost:5000"
   log_model: True
-  checkpoint_dir: "src/models/ResNet/checkpoints/"
-  checkpoint_filename: "ResNet-Grayscale-{epoch}-{val_loss:.2f}"
+  checkpoint_dir: "src/models/ConvAE/checkpoints/"
+  checkpoint_filename: "ConvAE-Grayscale-V2E-{epoch}-{val_loss:.2f}"
 callbacks:
   early_stopping_patience: 3
 evaluation:

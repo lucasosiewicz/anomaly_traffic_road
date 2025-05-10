@@ -6,7 +6,7 @@ import torchvision.models as models
 
 
 class ResNet(pl.LightningModule):
-    def __init__(self, input_shape=1, num_classes=6, learning_rate=0.0005, transform=None, freeze=True, class_weights=[1] * 6):
+    def __init__(self, input_shape=1, num_classes=6, learning_rate=0.0005, transform=None, freeze=True, class_weights=[1] * 6, weight_decay=0):
         super(ResNet, self).__init__()
         self.save_hyperparameters()
 
@@ -36,7 +36,7 @@ class ResNet(pl.LightningModule):
         )
 
         # Define a loss function and metric
-        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights))
+        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float))
         if num_classes == 2:
             self.accuracy = Accuracy(task="binary")
         else:
@@ -109,5 +109,5 @@ class ResNet(pl.LightningModule):
         self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.fc.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch.optim.Adam(self.model.fc.parameters(), lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         return {'optimizer': optimizer}

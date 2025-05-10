@@ -28,6 +28,7 @@ def main():
     stride = config['data']['stride']
     model_name = config['model']['name']
     class_weights = config['model']['class_weights']
+    weight_decay = config['model']['weight_decay']
     epochs = config['trainer']['epochs']
     device = config['trainer']['device']
     learning_rate = config['trainer']['learning_rate']
@@ -46,7 +47,7 @@ def main():
         resolved_device = device
 
     # Get model and related flags
-    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights)
+    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights, weight_decay)
 
     # Setup Callbacks
     callbacks = [

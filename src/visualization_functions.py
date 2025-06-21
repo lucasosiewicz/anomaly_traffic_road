@@ -28,7 +28,7 @@ def draw_historgram_of_errors(errors, labels, save_path=None):
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
     normal_indices = np.where(labels.cpu() == 0)[0]
-    anomaly_indices = np.where(labels.cpu() == 1)[0]
+    anomaly_indices = np.where(labels.cpu() != 1)[0]
 
     # Draw two histograms
     plt.figure(figsize=(10, 6))
@@ -55,13 +55,12 @@ def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsuperv
     else:
         y_true = targets.cpu().numpy()
         y_pred = torch.argmax(errors, dim=1).cpu().numpy()
-        # Zakładamy, że klasy są numerowane od 0 do N-1
         num_classes = max(y_true.max(), y_pred.max()) + 1 
         labels = [str(i) for i in range(num_classes)]
 
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 7))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.imshow(cm, interpolation='nearest', cmap='Blues')
     plt.title('Confusion Matrix')
     plt.colorbar()
     tick_marks = np.arange(num_classes)
@@ -83,3 +82,107 @@ def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsuperv
         if not Path(save_path).exists():
             Path(save_path).mkdir(parents=True, exist_ok=True)
         plt.savefig(Path(save_path) / 'confusion_matrix.png')
+
+def visualize_autoencoder_reconstructions(autoencoder, dataset, save_path=None, num_samples=5):
+    """
+    Wizualizuje rekonstrukcje autoenkodera dla próbek normalnych i anomalnych.
+    
+    Args:
+        autoencoder: Wytrenowany model autoenkodera
+        dataset: Dataset testowy zawierający próbki z etykietami
+        save_path: Ścieżka do zapisania wykresu
+        num_samples: Liczba próbek każdego typu do wizualizacji (domyślnie 5)
+    """
+    import random
+    
+    if save_path and not Path(save_path).exists():
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+    
+    # Znajdź indeksy próbek normalnych i anomalnych
+    normal_indices = []
+    anomaly_indices = []
+    
+    for i in range(len(dataset)):
+        _, label = dataset[i]
+        if label == 0:  # Normalne
+            normal_indices.append(i)
+        elif label == 1:  # Anomalie
+            anomaly_indices.append(i)
+    
+    # Losowo wybierz próbki
+    random.seed(42)  # Dla powtarzalności wyników
+    selected_normal = random.sample(normal_indices, min(num_samples, len(normal_indices)))
+    selected_anomaly = random.sample(anomaly_indices, min(num_samples, len(anomaly_indices)))
+    
+    # Przygotuj dane
+    normal_originals = []
+    normal_reconstructions = []
+    anomaly_originals = []
+    anomaly_reconstructions = []
+    
+    autoencoder.eval()
+    with torch.no_grad():
+        # Przetwórz próbki normalne
+        for idx in selected_normal:
+            img, _ = dataset[idx]
+            img_batch = img.unsqueeze(0)  # Dodaj wymiar batch
+            if torch.cuda.is_available():
+                img_batch = img_batch.cuda()
+            
+            reconstruction = autoencoder(img_batch)
+            
+            normal_originals.append(img.cpu())
+            normal_reconstructions.append(reconstruction.squeeze(0).cpu())
+        
+        # Przetwórz próbki anomalne
+        for idx in selected_anomaly:
+            img, _ = dataset[idx]
+            img_batch = img.unsqueeze(0)  # Dodaj wymiar batch
+            if torch.cuda.is_available():
+                img_batch = img_batch.cuda()
+            
+            reconstruction = autoencoder(img_batch)
+            
+            anomaly_originals.append(img.cpu())
+            anomaly_reconstructions.append(reconstruction.squeeze(0).cpu())
+    
+    # Tworzenie subplot
+    fig, axes = plt.subplots(4, num_samples, figsize=(num_samples * 3, 12))
+    
+    # Pierwsza linia: oryginalne próbki normalne
+    for i in range(num_samples):
+        if i < len(normal_originals):
+            img = normal_originals[i].squeeze()
+            axes[0, i].imshow(img, cmap='gray')
+            axes[0, i].set_title(f'Normal - Original {i+1}')
+            axes[0, i].axis('off')
+    
+    # Druga linia: rekonstrukcje próbek normalnych
+    for i in range(num_samples):
+        if i < len(normal_reconstructions):
+            img = normal_reconstructions[i].squeeze()
+            axes[1, i].imshow(img, cmap='gray')
+            axes[1, i].set_title(f'Normal - Reconstruction {i+1}')
+            axes[1, i].axis('off')
+    
+    # Trzecia linia: oryginalne próbki anomalne
+    for i in range(num_samples):
+        if i < len(anomaly_originals):
+            img = anomaly_originals[i].squeeze()
+            axes[2, i].imshow(img, cmap='gray')
+            axes[2, i].set_title(f'Anomaly - Original {i+1}')
+            axes[2, i].axis('off')
+    
+    # Czwarta linia: rekonstrukcje próbek anomalnych
+    for i in range(num_samples):
+        if i < len(anomaly_reconstructions):
+            img = anomaly_reconstructions[i].squeeze()
+            axes[3, i].imshow(img, cmap='gray')
+            axes[3, i].set_title(f'Anomaly - Reconstruction {i+1}')
+            axes[3, i].axis('off')
+    
+    plt.suptitle("Comparison of autoencoder's reconstruction", fontsize=16)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(Path(save_path) / 'autoencoder_reconstructions.png', dpi=300, bbox_inches='tight')

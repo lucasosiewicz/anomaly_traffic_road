@@ -1,0 +1,1 @@
+https://github.com/Cogito2012/CarCrashDataset?tab=readme-ov-file#citation

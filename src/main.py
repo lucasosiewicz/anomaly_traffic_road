@@ -1,6 +1,6 @@
-from visualization_functions import draw_loss_curves, draw_historgram_of_errors, draw_confusion_matrix
+from visualization_functions import draw_loss_curves, draw_historgram_of_errors, draw_confusion_matrix, visualize_autoencoder_reconstructions
 from callbacks.PrintMetricsCallback import PrintMetricsCallback
-from counting_functions import count_best_threshold
+from counting_functions import count_best_threshold, measure_single_sample_inference_time
 from data_classes.datamodule import DataModule
 from models.model_factory import get_model
 
@@ -11,6 +11,16 @@ from lightning import Trainer
 import mlflow
 import torch
 import yaml  # Import YAML library
+import time # Dodajemy import time
+
+
+# TODO:
+# - undersampling of major class
+# - crop images to objects
+# - check how reconstructed images look like
+# - check distribution of errors of each class on historgram
+# - experiment with diffrent images sizes
+# - save most affordable model (training time, inference time, size)
 
 # Function to load config
 def load_config(config_path='src/config.yaml'):
@@ -23,9 +33,12 @@ def main():
 
     # Use values from config
     path_to_data = config['data']['path']
+    dataset = config['data']['dataset']
     batch_size = config['data']['batch_size']
     sequence_length = config['data']['sequence_length']
     stride = config['data']['stride']
+    crop_type = config['data']['crop_type']
+    target_class = config['data']['target_class']
     model_name = config['model']['name']
     class_weights = config['model']['class_weights']
     weight_decay = config['model']['weight_decay']
@@ -48,6 +61,10 @@ def main():
 
     # Get model and related flags
     model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights, weight_decay)
+
+    # Obliczanie liczby parametrów modelu
+    num_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    num_total_params = sum(p.numel() for p in model.parameters())
 
     # Setup Callbacks
     callbacks = [
@@ -73,11 +90,14 @@ def main():
     # Setup DataModule
     data_module = DataModule(
         path_to_data=path_to_data,
+        dataset=dataset,
         batch_size=batch_size,
         unsupervised=is_unsupervised,
         is_sequence=is_sequence,
         sequence_length=sequence_length,
-        stride=stride
+        stride=stride,
+        crop_type=crop_type,
+        target_class=target_class
     )
     data_module.setup()
 
@@ -91,9 +111,30 @@ def main():
 
     with mlflow.start_run(run_id=logger.run_id):
         mlflow.log_params(config)
+        mlflow.log_param('num_trainable_params', num_trainable_params)
+        mlflow.log_param('num_total_params', num_total_params)
+
+        # Trening modelu
+        start_train_time = time.time()
         trainer.fit(model, data_module)
+        end_train_time = time.time()
+        training_duration_seconds = end_train_time - start_train_time
+        mlflow.log_metric('training_duration_seconds', training_duration_seconds)
+
+        # Testowanie modelu
         trainer.test(model, data_module.test_dataloader(), ckpt_path='best')
 
+        # Pomiar czasu inferencji dla pojedynczej próbki
+        single_sample_inference_duration_ms = measure_single_sample_inference_time(
+            model=model,
+            dataloader=data_module.test_dataloader(),
+            device=resolved_device,
+            is_unsupervised=is_unsupervised,
+            is_sequence=is_sequence
+        )
+        if single_sample_inference_duration_ms is not None:
+            mlflow.log_metric('single_sample_inference_duration_ms', single_sample_inference_duration_ms)
+            
         # Pobieranie metryk
         train_loss = callbacks[0].train_metrics['loss']
         val_loss = callbacks[0].val_metrics['loss']
@@ -106,6 +147,14 @@ def main():
             draw_historgram_of_errors(model.reconstruction_error, model.targets, save_path='src/plots')
             mlflow.log_artifact('src/plots/histogram_of_errors.png')
 
+            # Wizualizacja rekonstrukcji autoenkodera
+            visualize_autoencoder_reconstructions(
+                autoencoder=model, 
+                dataset=data_module.test_dataset, 
+                save_path='src/plots'
+            )
+            mlflow.log_artifact('src/plots/autoencoder_reconstructions.png')
+
         # Obliczanie najlepszego progu i metryk
         best_threshold, acc, precision, recall, f1 = count_best_threshold(
             model.reconstruction_error,
@@ -117,13 +166,14 @@ def main():
         draw_confusion_matrix(
             model.reconstruction_error,
             model.targets,
+            best_threshold,
             save_path='src/plots',
             unsupervised=is_unsupervised
         )
         mlflow.log_artifact('src/plots/confusion_matrix.png')
 
         # Logowanie metryk
-        mlflow.log_param('best_threshold', best_threshold.item() if best_threshold is not None else None)
+        mlflow.log_param('best_threshold', best_threshold.item() if best_threshold != 0 else None)
         mlflow.log_metrics({
             'accuracy': acc, 
             'precision': precision, 

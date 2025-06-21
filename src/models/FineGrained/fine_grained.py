@@ -9,6 +9,7 @@ class ModifiedResNet50(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.backbone = resnet50(weights="DEFAULT")
+        self.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.features = nn.Sequential(*list(self.backbone.children())[:-2])
         self.conv1x1 = nn.Conv2d(2048, num_classes, kernel_size=1)
 
@@ -98,20 +99,20 @@ class FineGrainedModel(L.LightningModule):
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         
-        if class_weights is not None:
-            self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights))
-        else:
-            self.criterion = GradientBoostingLoss()
+        self.criterion = GradientBoostingLoss()
 
-        self.reconstruction_error = []
-        self.targets = []
+        # Zmieniamy nazwę tymczasowej listy do przechowywania wyników testowych
+        self._test_outputs = [] 
+        # reconstruction_error i targets będą tworzone w on_test_epoch_end
+        self.reconstruction_error = None
+        self.targets = None
 
     def forward(self, x):
         activation_maps = self.feature_extractor(x)
         if self.training:
             activation_maps = self.diversification(activation_maps)
         pooled = self.pool(activation_maps).squeeze()
-        return pooled
+        return pooled.float()
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -130,20 +131,30 @@ class FineGrainedModel(L.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
-        loss = self.criterion(logits, y)
-        
-        # Zapisujemy błędy rekonstrukcji i etykiety dla późniejszej analizy
-        self.reconstruction_error.append(loss)
-        self.targets.append(y)
+        # Obliczamy stratę tylko do ewentualnego logowania, jeśli potrzebne
+        # loss = self.criterion(logits, y) 
+
+        # Zapisujemy logity i etykiety dla późniejszej analizy w on_test_epoch_end
+        # Usuwamy self.reconstruction_error.append(loss)
+        # Usuwamy self.targets.append(y)
+        self._test_outputs.append({'logits': logits, 'targets': y})
 
     def on_test_epoch_end(self):
-        all_losses = torch.cat(self.reconstruction_error).cpu()
-        all_targets = torch.cat(self.targets).cpu()
-        
-        self.reconstruction_error = all_losses
+        # Łączymy wszystkie logity i etykiety z epoki testowej
+        all_logits = torch.cat([o['logits'] for o in self._test_outputs]).cpu()
+        all_targets = torch.cat([o['targets'] for o in self._test_outputs]).cpu()
+
+        # Zapisujemy surowe logity (2D tensor) w atrybucie reconstruction_error,
+        # zgodnie z oczekiwaniami count_best_threshold dla modeli nadzorowanych.
+        self.reconstruction_error = all_logits
         self.targets = all_targets
 
-        self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
+        # Obliczamy i logujemy średnią stratę testową (na podstawie surowych logitów)
+        test_loss = self.criterion(all_logits.to(self.device), all_targets.to(self.device)) # Przenosimy na właściwe urządzenie do obliczeń
+        self.log("test_loss", test_loss, on_epoch=True, sync_dist=True)
+
+        # Usuwamy tymczasowe wyniki, aby zwolnić pamięć
+        self._test_outputs = []
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(

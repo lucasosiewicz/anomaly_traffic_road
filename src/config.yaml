@@ -1,23 +1,26 @@
 data:
-  path: "D:\\MAGISTERKA\\anomaly_traffic_road\\datasets\\DoTA"
+  path: "D:/MAGISTERKA/anomaly_traffic_road/datasets/CarCrash"
+  dataset: "CarCrash"
   batch_size: 64
   sequence_length: 4
   stride: 1
+  crop_type: "none"
+  target_class: 1
 model:
-  name: "LargerConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE
-  class_weights: [1,1,1,1,1,1]
+  name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
+  class_weights: [1,1]
   weight_decay: 0
 trainer:
   epochs: 100
   device: "cuda" # 'cuda', 'cpu', or 'auto'
   learning_rate: 0.001
 logging:
-  experiment_name: "DoTA-dataset"
-  run_name: "LargerConvAE-Grayscale-V2E"
+  experiment_name: "CarCrash-dataset"
+  run_name: "ResNet-Grayscale-cropped-manually-0-1-classes"
   tracking_uri: "http://localhost:5000"
   log_model: True
-  checkpoint_dir: "src/models/ConvAE/checkpoints/"
-  checkpoint_filename: "ConvAE-Grayscale-V2E-{epoch}-{val_loss:.2f}"
+  checkpoint_dir: "src/models/ResNet/checkpoints/"
+  checkpoint_filename: "ResNet-Grayscale-cropped-manually-0-1-classes-{epoch}-{val_loss:.2f}"
 callbacks:
   early_stopping_patience: 3
 evaluation:

@@ -48,23 +48,29 @@ class DataModule(LightningDataModule):
     def __init__(
         self, 
         path_to_data, 
+        dataset,
         batch_size=24, 
         unsupervised=True,
         is_sequence=False,
         sequence_length=16,
         stride=4,
         transform=None,
-        target_transform=None
+        target_transform=None,
+        crop_type=None,
+        target_class='all'
     ):
         super().__init__()
         self.batch_size = batch_size
         self.path_to_data = path_to_data
+        self.dataset = dataset
         self.unsupervised = unsupervised
         self.is_sequence = is_sequence
         self.sequence_length = sequence_length
         self.stride = stride
         self.transform = transform
         self.target_transform = target_transform
+        self.crop_type = crop_type
+        self.target_class = target_class
         
         # Parametry dla DataLoadera bez wielowątkowości
         self.params = calculate_dataloader_params(
@@ -82,14 +88,32 @@ class DataModule(LightningDataModule):
 
     def setup(self, stage=None):
         if self.unsupervised:
-            self.train_dataset = UnsupervisedDataset(self.path_to_data, 'train', resize_target=(227, 227))
-            self.val_dataset = UnsupervisedDataset(self.path_to_data, 'val', resize_target=(227, 227))
-            self.test_dataset = UnsupervisedDataset(self.path_to_data, 'test', resize_target=(227, 227))
+            self.train_dataset = UnsupervisedDataset(
+                self.path_to_data, 
+                'train', 
+                resize_target=(227, 227), 
+                crop_type=self.crop_type,
+                dataset_name=self.dataset
+            )
+            self.val_dataset = UnsupervisedDataset(
+                self.path_to_data, 
+                'val', 
+                resize_target=(227, 227), 
+                crop_type=self.crop_type,
+                dataset_name=self.dataset
+            )
+            self.test_dataset = UnsupervisedDataset(
+                self.path_to_data, 
+                'test', 
+                resize_target=(227, 227), 
+                crop_type=self.crop_type,
+                dataset_name=self.dataset
+            )
         else:
             if self.is_sequence:
                 self.train_dataset = VideoDataset(
                     self.path_to_data,
-                    split='train',
+                    which_set='train',
                     sequence_length=self.sequence_length,
                     stride=self.stride,
                     transform=self.transform,
@@ -97,7 +121,7 @@ class DataModule(LightningDataModule):
                 )
                 self.val_dataset = VideoDataset(
                     self.path_to_data,
-                    split='val',
+                    which_set='val',
                     sequence_length=self.sequence_length,
                     stride=self.stride,
                     transform=self.transform,
@@ -105,16 +129,34 @@ class DataModule(LightningDataModule):
                 )
                 self.test_dataset = VideoDataset(
                     self.path_to_data,
-                    split='test',
+                    which_set='test',
                     sequence_length=self.sequence_length,
                     stride=self.stride,
                     transform=self.transform,
                     target_transform=self.target_transform
                 )
             else:
-                self.train_dataset = SupervisedDataset(self.path_to_data, 'train')
-                self.val_dataset = SupervisedDataset(self.path_to_data, 'val')
-                self.test_dataset = SupervisedDataset(self.path_to_data, 'test')
+                self.train_dataset = SupervisedDataset(
+                    self.path_to_data, 
+                    which_set='train', 
+                    target_class=self.target_class, 
+                    crop_type=self.crop_type,
+                    dataset_name=self.dataset
+                )
+                self.val_dataset = SupervisedDataset(
+                    self.path_to_data, 
+                    which_set='val', 
+                    target_class=self.target_class, 
+                    crop_type=self.crop_type,
+                    dataset_name=self.dataset
+                )
+                self.test_dataset = SupervisedDataset(
+                    self.path_to_data, 
+                    which_set='test', 
+                    target_class=self.target_class, 
+                    crop_type=self.crop_type,
+                    dataset_name=self.dataset
+                )
 
     def train_dataloader(self):
         return DataLoader(
@@ -139,20 +181,3 @@ class DataModule(LightningDataModule):
             shuffle=False,
             **self.params
         )
-
-if __name__ == '__main__':
-    data_module = DataModule(
-        r'D:\MAGISTERKA\anomaly_traffic_road\datasets\DoTA',
-        batch_size=8,
-        unsupervised=False,
-        is_sequence=True,
-        sequence_length=4,
-        stride=1
-    )
-    data_module.setup()
-    train_loader = data_module.train_dataloader()
-    val_loader = data_module.val_dataloader()
-    test_loader = data_module.test_dataloader()
-    print(f"Train batches: {len(train_loader)}")
-    print(f"Val batches: {len(val_loader)}")
-    print(f"Test batches: {len(test_loader)}")

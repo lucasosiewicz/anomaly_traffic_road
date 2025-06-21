@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
+import time
 
 def count_best_threshold(reconstruction_error, targets, unsupervised=True):
-
     if unsupervised:
         best_threshold = 0
         best_accuracy = 0    
@@ -37,4 +37,40 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
         recall = recall_score(targets, reconstruction_error, average='macro')
         f1 = f1_score(targets, reconstruction_error, average='macro')
 
-        return None, accuracy, precision, recall, f1
+        return 0, accuracy, precision, recall, f1
+
+def measure_single_sample_inference_time(model, dataloader, device, is_unsupervised, is_sequence):
+    if dataloader is None or len(dataloader) == 0:
+        return None
+
+    try:
+        test_iter = iter(dataloader)
+        sample_batch = next(test_iter)
+    except StopIteration:
+        return None
+
+    if isinstance(sample_batch, (list, tuple)):
+        if len(sample_batch[0]) == 0:
+             return None
+        if is_sequence:
+            single_sample = sample_batch[0][0].unsqueeze(0)
+        else:
+            single_sample = sample_batch[0][0].unsqueeze(0)
+    else:
+        if len(sample_batch) == 0:
+            return None
+        single_sample = sample_batch[0].unsqueeze(0)
+
+    model = model.to(device)
+    single_sample = single_sample.to(device)
+    model.eval()
+    with torch.no_grad():
+        start_inference_time = time.time()
+        if is_unsupervised:
+            _ = model(single_sample)
+        else:
+            _ = model(single_sample)
+        end_inference_time = time.time()
+    
+    single_sample_inference_duration_ms = (end_inference_time - start_inference_time) * 1000
+    return single_sample_inference_duration_ms

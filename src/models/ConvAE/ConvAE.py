@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import lightning as L
 from torch import optim
+from torchmetrics.functional.image import structural_similarity_index_measure
 
 
 class Encoder(nn.Module):
@@ -61,7 +62,7 @@ class Decoder(nn.Module):
     
 
 class ConvAE(L.LightningModule):
-    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=1, learning_rate=0.001):
+    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=1, learning_rate=0.001, ssim_data_range=1.0):
         super().__init__()
 
         torch.set_float32_matmul_precision('high')
@@ -70,7 +71,10 @@ class ConvAE(L.LightningModule):
         self.decoder = decoder(input_shape)
 
         self.learning_rate = learning_rate
-        self.criterion = nn.MSELoss(reduction='none').to(self.device)
+        self.ssim_data_range = ssim_data_range
+        self.criterion = lambda preds, target: 1.0 - structural_similarity_index_measure(
+            preds, target, data_range=self.ssim_data_range, reduction='none'
+        )
 
         self.reconstruction_error = []
         self.targets = []
@@ -83,24 +87,27 @@ class ConvAE(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, _ = batch
         x_hat = self(x)
-        loss = self.criterion(x_hat, x)
-        self.log("train_loss", loss.mean(), on_step=True, on_epoch=True, sync_dist=True)
-        return loss.mean()
+        # criterion returns per-sample losses (1 - SSIM for each image in the batch)
+        per_sample_loss = self.criterion(x_hat, x)
+        loss = per_sample_loss.mean() # Calculate the mean loss for the batch
+        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+        return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
-        loss = self.criterion(x_hat, x)
-        self.log("val_loss", loss.mean(), on_step=True, on_epoch=True, sync_dist=True)
-        return loss.mean()
+        # criterion returns per-sample losses
+        per_sample_loss = self.criterion(x_hat, x)
+        loss = per_sample_loss.mean() # Calculate the mean loss for the batch
+        self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
+        return loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
-        loss = self.criterion(x_hat, x)
-        sample_loss = loss.view(loss.size(0), -1).mean(dim=1)
+        sample_losses = self.criterion(x_hat, x)
         
-        self.reconstruction_error.append(sample_loss)
+        self.reconstruction_error.append(sample_losses)
         self.targets.append(y)
     
     def on_test_epoch_end(self):

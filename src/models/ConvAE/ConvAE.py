@@ -107,17 +107,21 @@ class ConvAE(L.LightningModule):
         x_hat = self(x)
         sample_losses = self.criterion(x_hat, x)
         
-        self.reconstruction_error.append(sample_losses)
-        self.targets.append(y)
-    
+        self.reconstruction_error.extend(sample_losses)
+        self.targets.extend(y)
+
+    def on_test_epoch_start(self):
+        self.reconstruction_error = []
+        self.targets = []
+
     def on_test_epoch_end(self):
-        all_losses = torch.cat(self.reconstruction_error).cpu()
-        all_targets = torch.cat(self.targets).cpu()
+        reconstruction_error = torch.tensor(self.reconstruction_error)
+        all_targets = torch.tensor(self.targets)
         
-        self.reconstruction_error = all_losses
+        self.reconstruction_error = reconstruction_error
         self.targets = all_targets
 
-        self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
+        self.log("test_loss", reconstruction_error.mean(), on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)

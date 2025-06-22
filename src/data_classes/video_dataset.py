@@ -2,11 +2,10 @@ import json
 from pathlib import Path
 from typing import Tuple
 
-import cv2
-from kornia.geometry import resize
-import numpy as np
 import torch
 from torch.utils.data import Dataset
+from torchvision import transforms as T
+from PIL import Image
 
 
 class VideoDataset(Dataset):
@@ -36,6 +35,9 @@ class VideoDataset(Dataset):
         self.stride = stride
         self.transform = transform
         self.target_transform = target_transform
+
+        if self.transform is None:
+            self.transform = T.ToTensor()
 
         # Cache na ostatnio wczytane wideo
         self._cache = {
@@ -87,18 +89,11 @@ class VideoDataset(Dataset):
             
         frames = []
         for frame_path in frame_paths:
-            frame = torch.tensor(cv2.imread(str(frame_path), cv2.IMREAD_GRAYSCALE))
-            if len(frame.shape) == 2:
-                frame = frame.unsqueeze(2)
-            frame = frame.permute(2, 0, 1).float() / 255.
-            frame = resize(frame, (227, 227))
-            
+            frame = Image.open(frame_path)
             if frame is None:
                 raise ValueError(f"Nie udało się wczytać klatki {frame_path}")
             frames.append(frame)
             
-        frames = torch.stack(frames)  # [T, C, H, W]
-        
         # Wczytanie adnotacji
         with open(annotations_dir, 'r', encoding='utf-8') as f:
             annotations = json.load(f)
@@ -128,12 +123,16 @@ class VideoDataset(Dataset):
         seq_name, start_idx = self.all_sequences[idx]
         frames, labels = self.load_sequence(seq_name)
         
-        sequence = frames[start_idx:start_idx + self.sequence_length]
+        sequence_frames = frames[start_idx:start_idx + self.sequence_length]
+        
+        if self.transform:
+            sequence = torch.stack([self.transform(frame) for frame in sequence_frames])
+        else:
+            sequence = torch.stack(sequence_frames)
+
         # Bierzemy tylko etykietę z ostatniej klatki
         sequence_label = labels[start_idx + self.sequence_length - 1]
         
-        if self.transform:
-            sequence = self.transform(sequence)
         if self.target_transform:
             sequence_label = self.target_transform(sequence_label)
         

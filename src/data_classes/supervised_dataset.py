@@ -7,9 +7,9 @@ from torch.utils.data import Dataset
 import ast
 
 class SupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227), target_class: str | int = 'all', crop_type: str = None, dataset_name: str = 'DoTA'):
+    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227), target_class: str | int = 'all', crop_type: str = None, dataset_name: str = 'DoTA', ego_involved: bool | None = None):
 
-        assert which_set in ['train', 'val', 'test'], f"which_set must be one of ['train', 'val', 'test'], got {which_set}"
+        assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
         self.path_to_data = Path(path_to_data)
         self.resize_target = resize_target
@@ -17,6 +17,7 @@ class SupervisedDataset(Dataset):
         self.crop_type = crop_type
         self.which_set = which_set
         self.dataset_name = dataset_name
+        self.ego_involved = ego_involved
         self.images, self.labels = self.load_data(dataset_name, which_set)
 
     def __len__(self):
@@ -46,7 +47,17 @@ class SupervisedDataset(Dataset):
         targets = []
         for label_path in label_paths:
             with open(label_path, 'r', encoding='utf-8') as f:
-                labels_data = json.load(f)
+                try:
+                    labels_data = json.load(f)
+                    # None - accept all
+                    # False - accept only non-ego involve
+                    # True - accept only ego involve
+                    if labels_data.get('ignore') or (self.ego_involved is not None and self.ego_involved != labels_data.get('ego_involve')):
+                        continue
+                except json.JSONDecodeError:
+                    print(f"Warning: Could not decode JSON from file {label_path}. Skipping file.")
+                    continue
+
                 if "labels" not in labels_data:
                     print(f"Warning: Key 'labels' not found in file {label_path}. Skipping file.")
                     continue
@@ -177,19 +188,16 @@ class SupervisedDataset(Dataset):
                         all_data.append((image_file, label))
         
         if not all_data:
-            raise ValueError(f"No valid data found for CarCrash dataset")
+            raise ValueError("No valid data found for CarCrash dataset")
         
-        # Split data into train/val/test (70:15:15) without random shuffling
+        # Split data into train/val/test (70:30) without random shuffling
         total_samples = len(all_data)
         train_size = int(0.7 * total_samples)
-        val_size = int(0.15 * total_samples)
         
         if which_set == 'train':
             selected_data = all_data[:train_size]
         elif which_set == 'val':
-            selected_data = all_data[train_size:train_size + val_size]
-        elif which_set == 'test':
-            selected_data = all_data[train_size + val_size:]
+            selected_data = all_data[train_size:]
         else:
             raise ValueError(f"Invalid which_set: {which_set}")
         

@@ -101,8 +101,6 @@ class FineGrainedModel(L.LightningModule):
         
         self.criterion = GradientBoostingLoss()
 
-        # Zmieniamy nazwę tymczasowej listy do przechowywania wyników testowych
-        self._test_outputs = [] 
         # reconstruction_error i targets będą tworzone w on_test_epoch_end
         self.reconstruction_error = None
         self.targets = None
@@ -111,8 +109,9 @@ class FineGrainedModel(L.LightningModule):
         activation_maps = self.feature_extractor(x)
         if self.training:
             activation_maps = self.diversification(activation_maps)
-        pooled = self.pool(activation_maps).squeeze()
-        return pooled.float()
+        pooled = self.pool(activation_maps)
+        logits = pooled.view(pooled.size(0), -1)
+        return logits.float()
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -139,6 +138,9 @@ class FineGrainedModel(L.LightningModule):
         # Usuwamy self.targets.append(y)
         self._test_outputs.append({'logits': logits, 'targets': y})
 
+    def on_test_epoch_start(self):
+        self._test_outputs = []
+
     def on_test_epoch_end(self):
         # Łączymy wszystkie logity i etykiety z epoki testowej
         all_logits = torch.cat([o['logits'] for o in self._test_outputs]).cpu()
@@ -152,9 +154,6 @@ class FineGrainedModel(L.LightningModule):
         # Obliczamy i logujemy średnią stratę testową (na podstawie surowych logitów)
         test_loss = self.criterion(all_logits.to(self.device), all_targets.to(self.device)) # Przenosimy na właściwe urządzenie do obliczeń
         self.log("test_loss", test_loss, on_epoch=True, sync_dist=True)
-
-        # Usuwamy tymczasowe wyniki, aby zwolnić pamięć
-        self._test_outputs = []
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(

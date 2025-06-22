@@ -79,7 +79,7 @@ def run_v2e_for_folder(v2e_script_path, input_images_dir, output_base_dir, fps):
     try:
         # Upewnij się, że folder wyjściowy istnieje PRZED uruchomieniem v2e
         os.makedirs(output_base_dir, exist_ok=True)
-        result = subprocess.run(command, check=True, capture_output=True, text=True, encoding='utf-8')
+        subprocess.run(command, check=True, capture_output=True, text=True, encoding='utf-8')
         print("--- v2e Output ---")
         # print(result.stdout) # Można odkomentować dla pełnego logu v2e
         print(f"--- v2e zakończył działanie pomyślnie dla {input_images_dir} ---")

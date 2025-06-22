@@ -84,12 +84,15 @@ class LargerConvAE(L.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
-        loss = 1 - self.criterion(x_hat, x)
-        sample_loss = loss.view(loss.size(0), -1).mean(dim=1)
+        sample_losses = 1 - self.criterion(x_hat, x)
         
-        self.reconstruction_error.append(sample_loss)
+        self.reconstruction_error.append(sample_losses)
         self.targets.append(y)
     
+    def on_test_epoch_start(self):
+        self.reconstruction_error = []
+        self.targets = []
+
     def on_test_epoch_end(self):
         all_losses = torch.cat(self.reconstruction_error).cpu()
         all_targets = torch.cat(self.targets).cpu()

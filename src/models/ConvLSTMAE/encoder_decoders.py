@@ -1,9 +1,7 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
 
-from convlstm import ConvLSTM, ConvLSTMCell
-import pdb
+from convlstm import ConvLSTMCell
 
 class ConvEncoder(nn.Module):
     '''A 1x1 conv2d encoder to predict image from hidden states'''
@@ -80,9 +78,6 @@ class ConvLSTMDecoder(nn.Module):
     def __init__(self, args):
         super(ConvLSTMDecoder, self).__init__()
         self.args = args
-        input_size = (64, 64)
-        input_dim = 64 # input from the conv encoder
-        hidden_dim = 64
 
         self.dec = ConvLSTMCell((self.args.IMAGE_ENCODER.H, self.args.IMAGE_ENCODER.W), 
                                 self.args.IMAGE_ENCODER.INPUT_SIZE, 

@@ -1,4 +1,10 @@
-from visualization_functions import draw_loss_curves, draw_historgram_of_errors, draw_confusion_matrix, visualize_autoencoder_reconstructions
+from visualization_functions import (
+    draw_loss_curves, 
+    draw_historgram_of_errors, 
+    draw_confusion_matrix, 
+    visualize_autoencoder_reconstructions, 
+    draw_histogram_of_errors_by_class
+)
 from callbacks.PrintMetricsCallback import PrintMetricsCallback
 from counting_functions import count_best_threshold, measure_single_sample_inference_time
 from data_classes.datamodule import DataModule
@@ -15,12 +21,12 @@ import time # Dodajemy import time
 
 
 # TODO:
-# - undersampling of major class
-# - crop images to objects
-# - check how reconstructed images look like
-# - check distribution of errors of each class on historgram
-# - experiment with diffrent images sizes
-# - save most affordable model (training time, inference time, size)
+# - undersampling of major class - NOT YET
+# - crop images to objects - NOT YET
+# - check how reconstructed images look like - DONE
+# - check distribution of errors of each class on historgram - DONE
+# - experiment with diffrent images sizes - NOT YET
+# - save most affordable model (training time, inference time, size) - NOT YET
 
 # Function to load config
 def load_config(config_path='src/config.yaml'):
@@ -99,6 +105,8 @@ def main():
         crop_type=crop_type,
         target_class=target_class
     )
+    data_module.unsupervised = is_unsupervised
+    data_module.is_sequence = is_sequence
     data_module.setup()
 
     # Setup Trainer
@@ -146,6 +154,9 @@ def main():
         if is_unsupervised:
             draw_historgram_of_errors(model.reconstruction_error, model.targets, save_path='src/plots')
             mlflow.log_artifact('src/plots/histogram_of_errors.png')
+
+            draw_histogram_of_errors_by_class(model.reconstruction_error, model.targets, save_path='src/plots')
+            mlflow.log_artifact('src/plots/histogram_of_errors_by_class.png')
 
             # Wizualizacja rekonstrukcji autoenkodera
             visualize_autoencoder_reconstructions(

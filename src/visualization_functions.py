@@ -24,11 +24,12 @@ def draw_loss_curves(train_loss, val_loss, save_path=None):
 
 def draw_historgram_of_errors(errors, labels, save_path=None):
     
-    if not Path(save_path).exists():
+    if save_path and not Path(save_path).exists():
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
-    normal_indices = np.where(labels.cpu() == 0)[0]
-    anomaly_indices = np.where(labels.cpu() != 1)[0]
+    labels_cpu = labels.cpu()
+    normal_indices = np.where(labels_cpu == 0)[0]
+    anomaly_indices = np.where(labels_cpu != 0)[0]
 
     # Draw two histograms
     plt.figure(figsize=(10, 6))
@@ -42,6 +43,44 @@ def draw_historgram_of_errors(errors, labels, save_path=None):
 
     if save_path:
         plt.savefig(Path(save_path) / 'histogram_of_errors.png')
+
+
+def draw_histogram_of_errors_by_class(errors, labels, save_path=None):
+    """
+    Tworzy i zapisuje histogram błędów rekonstrukcji, grupując je według klas.
+    
+    Args:
+        errors (np.ndarray): Tablica błędów rekonstrukcji.
+        labels (torch.Tensor): Tensor etykiet dla każdej próbki.
+        save_path (str, optional): Ścieżka do zapisania wykresu.
+    """
+    if save_path and not Path(save_path).exists():
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+
+    labels_cpu = labels.cpu().numpy()
+    unique_labels = sorted(np.unique(labels_cpu))
+    
+    colors = plt.cm.get_cmap('tab10', len(unique_labels))
+
+    plt.figure(figsize=(12, 7))
+    
+    for i, label_class in enumerate(unique_labels):
+        indices = np.where(labels_cpu == label_class)[0]
+        if len(indices) > 0:
+            label_name = f"Anomaly Class {label_class}"
+            if label_class == 0:
+                label_name = "Normal (Class 0)"
+            
+            plt.hist(errors[indices], bins=50, alpha=0.7, color=colors(i), label=label_name)
+
+    plt.xlabel("Reconstruction Error")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.title("Histogram of Reconstruction Errors by Class")
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(Path(save_path) / 'histogram_of_errors_by_class.png')
 
 
 def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsupervised=True):

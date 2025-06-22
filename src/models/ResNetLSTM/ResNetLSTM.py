@@ -3,6 +3,8 @@ from torch import nn
 import lightning as pl
 from torchmetrics import Accuracy
 import torchvision.models as models
+import kornia.augmentation as K
+import kornia.geometry as G
 
 
 class ResNetLSTM(pl.LightningModule):
@@ -10,7 +12,6 @@ class ResNetLSTM(pl.LightningModule):
         self,
         input_shape=1,
         learning_rate=0.0005,
-        transform=None,
         freeze_resnet=True,
         hidden_size=512,
         num_layers=2,
@@ -21,9 +22,14 @@ class ResNetLSTM(pl.LightningModule):
 
         torch.set_float32_matmul_precision('high')
 
-        self.transform = transform
         self.learning_rate = learning_rate
         self.input_shape = input_shape
+
+        self.transform = nn.Sequential(
+            K.Normalize(0.0, 255.0),
+            K.RandomGrayscale(p=1.0),
+            G.Resize((227, 227), antialias=True)
+        )
 
         # Inicjalizacja ResNet
         self.resnet = models.resnet18(weights='DEFAULT')
@@ -61,8 +67,7 @@ class ResNetLSTM(pl.LightningModule):
             nn.Linear(hidden_size * 2, hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_size, 1),  # Zmiana na 1 wyjście
-            nn.Sigmoid()  # Dodanie sigmoid dla klasyfikacji binarnej
+            nn.Linear(hidden_size, 1)  # Zmiana na 1 wyjście
         )
 
         # Definicja funkcji straty i metryki
@@ -95,9 +100,15 @@ class ResNetLSTM(pl.LightningModule):
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         x, y = batch
-        if self.transform:
-            x = self.transform(x)
-        return x, y
+        
+        # x ma kształt [B, Seq, C, H, W]
+        # kornia działa na [B, C, H, W]
+        batch_size, seq_len, c, h, w = x.size()
+        x_reshaped = x.view(-1, c, h, w)
+        x_transformed = self.transform(x_reshaped)
+        x_final = x_transformed.view(batch_size, seq_len, *x_transformed.shape[1:])
+        
+        return x_final, y
 
     def training_step(self, batch, batch_idx):
         sequences, labels = batch  # labels: [batch_size]
@@ -110,7 +121,7 @@ class ResNetLSTM(pl.LightningModule):
         loss = self.criterion(outputs, labels.unsqueeze(1))
 
         # Obliczanie i logowanie dokładności
-        predicted_classes = (outputs > 0.5).float()
+        predicted_classes = (torch.sigmoid(outputs) > 0.5).float()
         acc = self.accuracy(predicted_classes, labels.unsqueeze(1))
         self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         self.log("train_acc", acc, prog_bar=True)
@@ -125,7 +136,7 @@ class ResNetLSTM(pl.LightningModule):
         outputs = outputs[:, -1, :]
 
         loss = self.criterion(outputs, labels.unsqueeze(1))
-        predicted_classes = (outputs > 0.5).float()
+        predicted_classes = (torch.sigmoid(outputs) > 0.5).float()
         acc = self.accuracy(predicted_classes, labels.unsqueeze(1))
 
         self.log('val_loss', loss, prog_bar=True, sync_dist=True)
@@ -142,17 +153,21 @@ class ResNetLSTM(pl.LightningModule):
         outputs = outputs[:, -1, :]
 
         loss = self.criterion(outputs, labels.unsqueeze(1))
-        predicted_classes = (outputs > 0.5).float()
+        predicted_classes = (torch.sigmoid(outputs) > 0.5).float()
         acc = self.accuracy(predicted_classes, labels.unsqueeze(1))
 
         self.log("test_loss", loss, on_epoch=True, prog_bar=True)
         self.log("test_acc", acc, prog_bar=True)
 
-        predicted_probs = outputs  # Już mamy sigmoid w modelu
+        predicted_probs = torch.sigmoid(outputs)
 
         # Zapisywanie predykcji i etykiet
         self.reconstruction_error.append(predicted_probs)
         self.targets.append(labels.unsqueeze(1))
+
+    def on_test_epoch_start(self):
+        self.reconstruction_error = []
+        self.targets = []
 
     def on_test_epoch_end(self):
         all_losses = torch.cat(self.reconstruction_error).cpu()
@@ -164,6 +179,6 @@ class ResNetLSTM(pl.LightningModule):
         self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
-        trainable_params = list(self.lstm.parameters()) + list(self.classifier.parameters())
-        optimizer = torch.optim.Adam(trainable_params, lr=self.hparams.learning_rate)
+        params_to_train = filter(lambda p: p.requires_grad, self.parameters())
+        optimizer = torch.optim.Adam(params_to_train, lr=self.hparams.learning_rate)
         return {'optimizer': optimizer}

@@ -137,6 +137,10 @@ class ResNet(pl.LightningModule):
         self.reconstruction_error.append(predicted_probs)
         self.targets.append(labels.long())
 
+    def on_test_epoch_start(self):
+        self.reconstruction_error = []
+        self.targets = []
+
     def on_test_epoch_end(self):
         all_losses = torch.cat(self.reconstruction_error).cpu()
         all_targets = torch.cat(self.targets).cpu()
@@ -147,5 +151,6 @@ class ResNet(pl.LightningModule):
         self.log("test_loss", all_losses.mean(), on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.fc.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        params_to_train = filter(lambda p: p.requires_grad, self.parameters())
+        optimizer = torch.optim.Adam(params_to_train, lr=self.learning_rate, weight_decay=self.weight_decay)
         return {'optimizer': optimizer}

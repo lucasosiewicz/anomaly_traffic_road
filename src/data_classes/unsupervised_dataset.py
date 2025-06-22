@@ -1,24 +1,25 @@
+import ast
 import cv2
 import json
 import torch
 from pathlib import Path
 from kornia.geometry import resize
 from torch.utils.data import Dataset
-import ast
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class UnsupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (224, 224), crop_type: str = None, dataset_name: str = 'DoTA'):
+    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (224, 224), crop_type: str = None, dataset_name: str = 'DoTA', ego_involved = None):
 
-        assert which_set in ['train', 'val', 'test'], f"which_set must be one of ['train', 'val', 'test'], got {which_set}"
+        assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
         self.path_to_data = Path(path_to_data)
         self.resize_target = resize_target
         self.crop_type = crop_type
         self.which_set = which_set
         self.dataset_name = dataset_name
-        self.images, self.labels = self.load_data(dataset_name, which_set)
+        self.ego_involved = ego_involved
+        self.images, self.labels = self.load_data(dataset_name, which_set, ego_involved)
 
     def __len__(self):
         return len(self.images)
@@ -35,63 +36,76 @@ class UnsupervisedDataset(Dataset):
 
             return img, self.labels[idx]
 
-    def _load_dota(self, which_set: str):
+    def _load_dota(self, which_set: str, ego_involved: bool | None = None):
         label_paths = [label for label in (self.path_to_data / 'annotations' / which_set).rglob('*.json')]
         images = []
         targets = []
         for label_path in label_paths:
+            temp_images_for_file = []
+            temp_targets_for_file = []
+
             with open(label_path, 'r', encoding='utf-8') as f:
-                labels_data = json.load(f)
+                try:
+                    labels_data = json.load(f)
+                    # None - accept all
+                    # False - accept only non-ego involve
+                    # True - accept only ego involve
+                    if labels_data['ignore'] or (ego_involved is not None and ego_involved != labels_data['ego_involve']):
+                        continue
+                except json.JSONDecodeError:
+                    print(f"Warning: Could not decode JSON from file {label_path}. Skipping file.")
+                    continue
+
                 if "labels" not in labels_data:
                     print(f"Warning: Key 'labels' not found in file {label_path}. Skipping file.")
                     continue
+                
                 labels = labels_data["labels"]
 
                 try:
                     labels.sort(key=lambda x: x['image_path'])
                 except KeyError:
-                    print(f"Warning: Key 'image_path' not found in one of the labels in file {label_path}. Sorting skipped.")
-
+                    print(f"Warning: Key 'image_path' not found in one of the labels in file {label_path}. Skipping file.")
+                    continue
                 except Exception as e:
-                     print(f"Error while sorting labels in file {label_path}: {e}. Sorting skipped.")
+                     print(f"Error while sorting labels in file {label_path}: {e}. Skipping file.")
+                     continue
 
-
-                temp_images_for_file = []
-                temp_targets_for_file = []
                 seen_anomaly_in_file = False
 
                 for label in labels:
-                    accident_id = label.get('accident_id', -1)
+                    original_accident_id = label.get('accident_id', -1)
                     image_path_str = label.get('image_path')
 
                     if image_path_str is None:
                         print(f"Warning: Key 'image_path' not found in label in file {label_path}. Skipping label.")
                         continue
 
-                    image_path = self.path_to_data / "frames" / which_set / image_path_str.replace("frames/", "")
+                    image_path = self.path_to_data / "frames" / which_set / image_path_str.lstrip("frames/")
 
                     if not image_path.exists():
                         continue
-
-
-                    if which_set == 'test':
-                        if accident_id != 0:
-                            seen_anomaly_in_file = True
-                            temp_images_for_file.append(image_path)
-                            temp_targets_for_file.append(1)
-                        else:
-                            if seen_anomaly_in_file:
-                                break
-                            else:
-                                temp_images_for_file.append(image_path)
-                                temp_targets_for_file.append(0)
+                    
+                    if original_accident_id == 0:
+                        mapped_id = 0
+                    elif original_accident_id in [1, 2, 3, 4, 5]:
+                        mapped_id = 1
+                    elif original_accident_id == 6:
+                        mapped_id = 2
+                    elif original_accident_id == 7:
+                        mapped_id = 3
+                    elif original_accident_id in [8, 9]:
+                        mapped_id = 4
+                    elif original_accident_id == 10:
+                        mapped_id = 5
                     else:
-                        if accident_id != 0:
-                            break
-                        else:
-                            temp_images_for_file.append(image_path)
-                            temp_targets_for_file.append(0)
+                         continue
 
+                    if mapped_id != 0:
+                        break 
+                    else:
+                        temp_images_for_file.append(image_path)
+                        temp_targets_for_file.append(0)
 
             images.extend(temp_images_for_file)
             targets.extend(temp_targets_for_file)
@@ -102,7 +116,7 @@ class UnsupervisedDataset(Dataset):
         return images, torch.tensor(targets)
     
     def load_carcrash(self, which_set: str):
-        if which_set in ['train', 'val']:
+        if which_set == 'train':
             # For train and val sets, get all available frames with label 0
             frames_dir = self.path_to_data / 'frames' / which_set
             images = []
@@ -118,7 +132,7 @@ class UnsupervisedDataset(Dataset):
                             images.append(frame_file)
                             targets.append(0)  # All frames in train/val have label 0
                         
-        else:  # test set
+        elif which_set == 'val':
             # For test set, load labels from labels.txt file
             labels_file = self.path_to_data / 'labels.txt'
             frames_dir = self.path_to_data / 'frames' / which_set
@@ -181,9 +195,9 @@ class UnsupervisedDataset(Dataset):
         
         return images, torch.tensor(targets)
 
-    def load_data(self, dataset_name: str, which_set: str):
+    def load_data(self, dataset_name: str, which_set: str, ego_involved: bool | None = None):
         if dataset_name == 'DoTA':
-            return self._load_dota(which_set)
+            return self._load_dota(which_set, ego_involved)
         elif dataset_name == 'CarCrash':
             return self.load_carcrash(which_set)
         else:

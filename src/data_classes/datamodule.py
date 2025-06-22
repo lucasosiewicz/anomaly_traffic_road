@@ -2,7 +2,8 @@ from data_classes.unsupervised_dataset import UnsupervisedDataset
 from data_classes.supervised_dataset import SupervisedDataset
 from data_classes.video_dataset import VideoDataset
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
+from torch import Generator
 from math import floor
 import numpy as np
 import psutil
@@ -57,7 +58,8 @@ class DataModule(LightningDataModule):
         transform=None,
         target_transform=None,
         crop_type=None,
-        target_class='all'
+        target_class='all',
+        ego_involved=None
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -71,6 +73,7 @@ class DataModule(LightningDataModule):
         self.target_transform = target_transform
         self.crop_type = crop_type
         self.target_class = target_class
+        self.ego_involved = ego_involved
         
         # Parametry dla DataLoadera bez wielowątkowości
         self.params = calculate_dataloader_params(
@@ -93,27 +96,23 @@ class DataModule(LightningDataModule):
                 'train', 
                 resize_target=(227, 227), 
                 crop_type=self.crop_type,
-                dataset_name=self.dataset
+                dataset_name=self.dataset,
+                ego_involved=self.ego_involved
             )
             self.val_dataset = UnsupervisedDataset(
                 self.path_to_data, 
                 'val', 
                 resize_target=(227, 227), 
                 crop_type=self.crop_type,
-                dataset_name=self.dataset
+                dataset_name=self.dataset,
+                ego_involved=self.ego_involved
             )
-            self.test_dataset = UnsupervisedDataset(
-                self.path_to_data, 
-                'test', 
-                resize_target=(227, 227), 
-                crop_type=self.crop_type,
-                dataset_name=self.dataset
-            )
+            self.test_dataset = self.train_dataset
         else:
             if self.is_sequence:
                 self.train_dataset = VideoDataset(
                     self.path_to_data,
-                    which_set='train',
+                    split='train',
                     sequence_length=self.sequence_length,
                     stride=self.stride,
                     transform=self.transform,
@@ -121,42 +120,31 @@ class DataModule(LightningDataModule):
                 )
                 self.val_dataset = VideoDataset(
                     self.path_to_data,
-                    which_set='val',
+                    split='val',
                     sequence_length=self.sequence_length,
                     stride=self.stride,
                     transform=self.transform,
                     target_transform=self.target_transform
                 )
-                self.test_dataset = VideoDataset(
-                    self.path_to_data,
-                    which_set='test',
-                    sequence_length=self.sequence_length,
-                    stride=self.stride,
-                    transform=self.transform,
-                    target_transform=self.target_transform
-                )
+                self.test_dataset = self.train_dataset
             else:
                 self.train_dataset = SupervisedDataset(
                     self.path_to_data, 
                     which_set='train', 
                     target_class=self.target_class, 
                     crop_type=self.crop_type,
-                    dataset_name=self.dataset
+                    dataset_name=self.dataset,
+                    ego_involved=self.ego_involved
                 )
                 self.val_dataset = SupervisedDataset(
                     self.path_to_data, 
                     which_set='val', 
                     target_class=self.target_class, 
                     crop_type=self.crop_type,
-                    dataset_name=self.dataset
+                    dataset_name=self.dataset,
+                    ego_involved=self.ego_involved
                 )
-                self.test_dataset = SupervisedDataset(
-                    self.path_to_data, 
-                    which_set='test', 
-                    target_class=self.target_class, 
-                    crop_type=self.crop_type,
-                    dataset_name=self.dataset
-                )
+                self.test_dataset = self.train_dataset
 
     def train_dataloader(self):
         return DataLoader(

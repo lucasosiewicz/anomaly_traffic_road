@@ -6,6 +6,7 @@ data:
   stride: 1
   crop_type: "none"
   target_class: 1
+  ego_involved: null # null, true, or false
 model:
   name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
   class_weights: [1,1]

@@ -1,6 +1,5 @@
 from pathlib import Path
 from tqdm import tqdm
-import shutil
 
 """
 This script takes images from DADA dataset and organizes them into a single directory called 'images'.

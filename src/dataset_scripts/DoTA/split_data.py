@@ -1,5 +1,4 @@
 from pathlib import Path
-import shutil
 
 DATASET_PATH = r"D:\MAGISTERKA\anomaly_traffic_road\datasets\DoTA"
 

@@ -1,14 +1,15 @@
 data:
-  path: "D:/MAGISTERKA/anomaly_traffic_road/datasets/CarCrash"
-  dataset: "CarCrash"
+  path: "D:/MAGISTERKA/anomaly_traffic_road/datasets/DoTA"
+  dataset: "DoTA"
   batch_size: 64
   sequence_length: 4
   stride: 1
   crop_type: "none"
   target_class: 1
   ego_involved: null # null, true, or false
+  color_space: "rgb" # "gray" or "rgb"
 model:
-  name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
+  name: "ConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
   class_weights: [1,1]
   weight_decay: 0
 trainer:
@@ -16,12 +17,12 @@ trainer:
   device: "cuda" # 'cuda', 'cpu', or 'auto'
   learning_rate: 0.001
 logging:
-  experiment_name: "CarCrash-dataset"
-  run_name: "ResNet-Grayscale-cropped-manually-0-1-classes"
+  experiment_name: "DoTA-dataset-new"
+  run_name: "ConvAE-RGB-none-cropped-not-ego-involved"
   tracking_uri: "http://localhost:5000"
   log_model: True
-  checkpoint_dir: "src/models/ResNet/checkpoints/"
-  checkpoint_filename: "ResNet-Grayscale-cropped-manually-0-1-classes-{epoch}-{val_loss:.2f}"
+  checkpoint_dir: "src/models/ConvAE/checkpoints/"
+  checkpoint_filename: "ConvAE-RGB-none-cropped-not-ego-involved-{epoch}-{val_loss:.2f}"
 callbacks:
   early_stopping_patience: 3
 evaluation:

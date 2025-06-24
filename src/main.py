@@ -45,6 +45,8 @@ def main():
     stride = config['data']['stride']
     crop_type = config['data']['crop_type']
     target_class = config['data']['target_class']
+    ego_involved = config['data']['ego_involved']
+    color_space = config['data']['color_space']
     model_name = config['model']['name']
     class_weights = config['model']['class_weights']
     weight_decay = config['model']['weight_decay']
@@ -103,7 +105,9 @@ def main():
         sequence_length=sequence_length,
         stride=stride,
         crop_type=crop_type,
-        target_class=target_class
+        target_class=target_class,
+        ego_involved=ego_involved,
+        color_space=color_space
     )
     data_module.unsupervised = is_unsupervised
     data_module.is_sequence = is_sequence
@@ -119,6 +123,7 @@ def main():
 
     with mlflow.start_run(run_id=logger.run_id):
         mlflow.log_params(config)
+        mlflow.log_artifact('src/config.yaml')
         mlflow.log_param('num_trainable_params', num_trainable_params)
         mlflow.log_param('num_total_params', num_total_params)
 

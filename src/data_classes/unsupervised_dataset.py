@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class UnsupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (224, 224), crop_type: str = None, dataset_name: str = 'DoTA', ego_involved = None):
+    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (224, 224), crop_type: str = None, color_space: str = 'gray', dataset_name: str = 'DoTA', ego_involved = None):
 
         assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
@@ -19,24 +19,33 @@ class UnsupervisedDataset(Dataset):
         self.which_set = which_set
         self.dataset_name = dataset_name
         self.ego_involved = ego_involved
-        self.images, self.labels = self.load_data(dataset_name, which_set, ego_involved)
+        self.color_space = color_space
+        self.images, self.labels = self.load_data(dataset_name, which_set)
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
+        if self.color_space == 'gray':
             img = torch.tensor(cv2.imread(str(self.images[idx]), cv2.IMREAD_GRAYSCALE)) # type: ignore
-            if self.crop_type:
-                if self.crop_type == 'manual':
-                    img = img[300:-100]
-            if len(img.shape) == 2:
-                img = img.unsqueeze(2)
-            img = img.permute(2, 0, 1).float() / 255.
-            img = resize(img, self.resize_target)
+        elif self.color_space == 'rgb':
+            img = torch.tensor(cv2.cvtColor(cv2.imread(str(self.images[idx])), cv2.COLOR_BGR2RGB)) # type: ignore
+        else:
+            raise ValueError(f"Invalid color space: {self.color_space}")
+        
+        if self.crop_type:
+            if self.crop_type == 'manual':
+                img = img[300:-100]
+        
+        if len(img.shape) == 2:
+            img = img.unsqueeze(2)
+        
+        img = img.permute(2, 0, 1).float() / 255.
+        img = resize(img, self.resize_target)
+        
+        return img, self.labels[idx]
 
-            return img, self.labels[idx]
-
-    def _load_dota(self, which_set: str, ego_involved: bool | None = None):
+    def _load_dota(self, which_set: str):
         label_paths = [label for label in (self.path_to_data / 'annotations' / which_set).rglob('*.json')]
         images = []
         targets = []
@@ -50,7 +59,7 @@ class UnsupervisedDataset(Dataset):
                     # None - accept all
                     # False - accept only non-ego involve
                     # True - accept only ego involve
-                    if labels_data['ignore'] or (ego_involved is not None and ego_involved != labels_data['ego_involve']):
+                    if labels_data['ignore'] or (self.ego_involved is not None and self.ego_involved != labels_data['ego_involve']):
                         continue
                 except json.JSONDecodeError:
                     print(f"Warning: Could not decode JSON from file {label_path}. Skipping file.")
@@ -195,9 +204,9 @@ class UnsupervisedDataset(Dataset):
         
         return images, torch.tensor(targets)
 
-    def load_data(self, dataset_name: str, which_set: str, ego_involved: bool | None = None):
+    def load_data(self, dataset_name: str, which_set: str):
         if dataset_name == 'DoTA':
-            return self._load_dota(which_set, ego_involved)
+            return self._load_dota(which_set)
         elif dataset_name == 'CarCrash':
             return self.load_carcrash(which_set)
         else:

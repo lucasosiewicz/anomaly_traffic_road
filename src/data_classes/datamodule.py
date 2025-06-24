@@ -59,7 +59,8 @@ class DataModule(LightningDataModule):
         target_transform=None,
         crop_type=None,
         target_class='all',
-        ego_involved=None
+        ego_involved=None,
+        color_space='gray'
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -74,6 +75,7 @@ class DataModule(LightningDataModule):
         self.crop_type = crop_type
         self.target_class = target_class
         self.ego_involved = ego_involved
+        self.color_space = color_space
         
         # Parametry dla DataLoadera bez wielowątkowości
         self.params = calculate_dataloader_params(
@@ -97,7 +99,8 @@ class DataModule(LightningDataModule):
                 resize_target=(227, 227), 
                 crop_type=self.crop_type,
                 dataset_name=self.dataset,
-                ego_involved=self.ego_involved
+                ego_involved=self.ego_involved,
+                color_space=self.color_space
             )
             self.val_dataset = UnsupervisedDataset(
                 self.path_to_data, 
@@ -105,7 +108,8 @@ class DataModule(LightningDataModule):
                 resize_target=(227, 227), 
                 crop_type=self.crop_type,
                 dataset_name=self.dataset,
-                ego_involved=self.ego_involved
+                ego_involved=self.ego_involved,
+                color_space=self.color_space
             )
             self.test_dataset = self.train_dataset
         else:
@@ -134,7 +138,8 @@ class DataModule(LightningDataModule):
                     target_class=self.target_class, 
                     crop_type=self.crop_type,
                     dataset_name=self.dataset,
-                    ego_involved=self.ego_involved
+                    ego_involved=self.ego_involved,
+                    color_space=self.color_space
                 )
                 self.val_dataset = SupervisedDataset(
                     self.path_to_data, 
@@ -142,7 +147,8 @@ class DataModule(LightningDataModule):
                     target_class=self.target_class, 
                     crop_type=self.crop_type,
                     dataset_name=self.dataset,
-                    ego_involved=self.ego_involved
+                    ego_involved=self.ego_involved,
+                    color_space=self.color_space
                 )
                 self.test_dataset = self.train_dataset
 

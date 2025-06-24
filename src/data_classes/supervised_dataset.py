@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 import ast
 
 class SupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227), target_class: str | int = 'all', crop_type: str = None, dataset_name: str = 'DoTA', ego_involved: bool | None = None):
+    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227), target_class: str | int = 'all', crop_type: str = None, dataset_name: str = 'DoTA', ego_involved: bool | None = None, color_space: str = 'gray'):
 
         assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
@@ -18,6 +18,7 @@ class SupervisedDataset(Dataset):
         self.which_set = which_set
         self.dataset_name = dataset_name
         self.ego_involved = ego_involved
+        self.color_space = color_space
         self.images, self.labels = self.load_data(dataset_name, which_set)
 
     def __len__(self):
@@ -25,7 +26,14 @@ class SupervisedDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path = str(self.images[idx])
-        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) # type: ignore
+        if self.color_space == 'gray':
+            img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) # type: ignore
+        elif self.color_space == 'rgb':
+            img = cv2.imread(image_path) # type: ignore
+            if img is not None:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # type: ignore
+        else:
+            raise ValueError(f"Invalid color space: {self.color_space}")
         
         if img is None:
             raise ValueError(f"Could not load image from path: {image_path}")

@@ -60,9 +60,21 @@ def draw_histogram_of_errors_by_class(errors, labels, save_path=None):
     labels_cpu = labels.cpu().numpy()
     unique_labels = sorted(np.unique(labels_cpu))
     
-    colors = plt.cm.get_cmap('tab10', len(unique_labels))
+    # Define contrasting colors
+    color_map = {
+        0: '#1f77b4',  # Blue for normal
+        1: '#ff7f0e',  # Orange
+        2: '#2ca02c',  # Green  
+        3: '#d62728',  # Red
+        4: '#9467bd',  # Purple
+        5: '#8c564b'   # Brown
+    }
 
     plt.figure(figsize=(12, 7))
+    
+    # Create shared bins for all classes to ensure same width
+    all_errors = errors
+    bins = np.linspace(all_errors.min(), all_errors.max(), 50)
     
     for i, label_class in enumerate(unique_labels):
         indices = np.where(labels_cpu == label_class)[0]
@@ -71,7 +83,9 @@ def draw_histogram_of_errors_by_class(errors, labels, save_path=None):
             if label_class == 0:
                 label_name = "Normal (Class 0)"
             
-            plt.hist(errors[indices], bins=50, alpha=0.7, color=colors(i), label=label_name)
+            color = color_map.get(label_class, '#000000')
+            plt.hist(errors[indices], bins=bins, alpha=0.7, color=color, 
+                    label=label_name, edgecolor='white', linewidth=0.5)
 
     plt.xlabel("Reconstruction Error")
     plt.ylabel("Frequency")
@@ -86,7 +100,9 @@ def draw_histogram_of_errors_by_class(errors, labels, save_path=None):
 def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsupervised=True):
 
     if unsupervised:
-        y_true = targets.cpu().numpy()
+        # Convert targets to binary: 0 (normal) vs 1 (anomaly)
+        binary_targets = np.where(targets.cpu().numpy() > 0, 1, 0)
+        y_true = binary_targets
         y_pred = np.where(errors > threshold, 1, 0)
         labels = ['normal', 'anomaly']
         num_classes = 2
@@ -143,9 +159,9 @@ def visualize_autoencoder_reconstructions(autoencoder, dataset, save_path=None, 
     
     for i in range(len(dataset)):
         _, label = dataset[i]
-        if label == 0:  # Normalne
+        if label == 0:
             normal_indices.append(i)
-        elif label == 1:  # Anomalie
+        elif label > 0:
             anomaly_indices.append(i)
     
     # Losowo wybierz próbki
@@ -188,35 +204,64 @@ def visualize_autoencoder_reconstructions(autoencoder, dataset, save_path=None, 
     # Tworzenie subplot
     fig, axes = plt.subplots(4, num_samples, figsize=(num_samples * 3, 12))
     
+    def prepare_image_for_display(img_tensor):
+        """Convert tensor to format suitable for matplotlib imshow"""
+        img = img_tensor.clone()
+        
+        # Handle different image formats
+        if len(img.shape) == 3:
+            if img.shape[0] == 1:  # Grayscale with channel dimension
+                img = img.squeeze(0)
+            elif img.shape[0] == 3:  # RGB in CHW format
+                img = img.permute(1, 2, 0)  # Convert to HWC
+        elif len(img.shape) == 2:  # Already grayscale HW
+            pass
+        
+        # Ensure values are in [0, 1] range
+        img = torch.clamp(img, 0, 1)
+        return img.numpy()
+    
     # Pierwsza linia: oryginalne próbki normalne
     for i in range(num_samples):
         if i < len(normal_originals):
-            img = normal_originals[i].squeeze()
-            axes[0, i].imshow(img, cmap='gray')
+            img = prepare_image_for_display(normal_originals[i])
+            if len(img.shape) == 3:  # RGB
+                axes[0, i].imshow(img)
+            else:  # Grayscale
+                axes[0, i].imshow(img, cmap='gray')
             axes[0, i].set_title(f'Normal - Original {i+1}')
             axes[0, i].axis('off')
     
     # Druga linia: rekonstrukcje próbek normalnych
     for i in range(num_samples):
         if i < len(normal_reconstructions):
-            img = normal_reconstructions[i].squeeze()
-            axes[1, i].imshow(img, cmap='gray')
+            img = prepare_image_for_display(normal_reconstructions[i])
+            if len(img.shape) == 3:  # RGB
+                axes[1, i].imshow(img)
+            else:  # Grayscale
+                axes[1, i].imshow(img, cmap='gray')
             axes[1, i].set_title(f'Normal - Reconstruction {i+1}')
             axes[1, i].axis('off')
     
     # Trzecia linia: oryginalne próbki anomalne
     for i in range(num_samples):
         if i < len(anomaly_originals):
-            img = anomaly_originals[i].squeeze()
-            axes[2, i].imshow(img, cmap='gray')
+            img = prepare_image_for_display(anomaly_originals[i])
+            if len(img.shape) == 3:  # RGB
+                axes[2, i].imshow(img)
+            else:  # Grayscale
+                axes[2, i].imshow(img, cmap='gray')
             axes[2, i].set_title(f'Anomaly - Original {i+1}')
             axes[2, i].axis('off')
     
     # Czwarta linia: rekonstrukcje próbek anomalnych
     for i in range(num_samples):
         if i < len(anomaly_reconstructions):
-            img = anomaly_reconstructions[i].squeeze()
-            axes[3, i].imshow(img, cmap='gray')
+            img = prepare_image_for_display(anomaly_reconstructions[i])
+            if len(img.shape) == 3:  # RGB
+                axes[3, i].imshow(img)
+            else:  # Grayscale
+                axes[3, i].imshow(img, cmap='gray')
             axes[3, i].set_title(f'Anomaly - Reconstruction {i+1}')
             axes[3, i].axis('off')
     

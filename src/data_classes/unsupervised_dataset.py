@@ -9,7 +9,15 @@ from torch.utils.data import Dataset
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class UnsupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (224, 224), crop_type: str = None, color_space: str = 'gray', dataset_name: str = 'DoTA', ego_involved = None):
+    def __init__(self, 
+                 path_to_data: str, 
+                 which_set: str, 
+                 resize_target: tuple = (224, 224), 
+                 crop_type: str = None, 
+                 color_space: str = 'gray', 
+                 dataset_name: str = 'DoTA', 
+                 ego_involved = None,
+                 include_anomalies: bool = False):
 
         assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
@@ -20,6 +28,7 @@ class UnsupervisedDataset(Dataset):
         self.dataset_name = dataset_name
         self.ego_involved = ego_involved
         self.color_space = color_space
+        self.include_anomalies = include_anomalies
         self.images, self.labels = self.load_data(dataset_name, which_set)
 
     def __len__(self):
@@ -110,11 +119,20 @@ class UnsupervisedDataset(Dataset):
                     else:
                          continue
 
-                    if mapped_id != 0:
-                        break 
-                    else:
-                        temp_images_for_file.append(image_path)
-                        temp_targets_for_file.append(0)
+                    # Logic for different sets:
+                    # train: only normal samples (mapped_id == 0)
+                    # val: normal + anomalies based on include_anomalies flag
+                    if self.which_set == 'train':
+                        if mapped_id == 0:  # Only normal samples for training
+                            temp_images_for_file.append(image_path)
+                            temp_targets_for_file.append(mapped_id)
+                    else:  # val set
+                        if mapped_id == 0:  # Always include normal samples
+                            temp_images_for_file.append(image_path)
+                            temp_targets_for_file.append(mapped_id)
+                        elif self.include_anomalies and mapped_id > 0:  # Include anomalies if flag is set
+                            temp_images_for_file.append(image_path)
+                            temp_targets_for_file.append(mapped_id)
 
             images.extend(temp_images_for_file)
             targets.extend(temp_targets_for_file)

@@ -8,7 +8,7 @@ from .FineGrained.fine_grained import FineGrainedModel
 
 def get_model(model_name: str, learning_rate: float, class_weights: list[float], weight_decay: float) -> tuple[nn.Module, bool, bool]:
     if model_name == 'ConvAE':
-        return ConvAE(learning_rate=learning_rate, input_shape=3), True, False
+        return ConvAE(learning_rate=learning_rate, input_shape=1), True, False
     elif model_name == 'ResNet':
         return ResNet(learning_rate=learning_rate, class_weights=class_weights, weight_decay=weight_decay), False, False
     elif model_name == 'ResNetLSTM':

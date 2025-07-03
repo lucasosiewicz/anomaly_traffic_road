@@ -12,14 +12,16 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
         best_f1 = 0
 
         targets = targets.cpu()
+        # Convert targets to binary: 0 (normal) vs 1 (anomaly)
+        binary_targets = torch.where(targets > 0, 1, 0)
 
         for threshold in np.linspace(min(reconstruction_error), max(reconstruction_error), 100):
             predictions = torch.where(reconstruction_error > threshold, 1, 0)
 
-            accuracy = accuracy_score(targets, predictions)
-            precision = precision_score(targets, predictions)
-            recall = recall_score(targets, predictions)
-            f1 = f1_score(targets, predictions)
+            accuracy = accuracy_score(binary_targets, predictions)
+            precision = precision_score(binary_targets, predictions)
+            recall = recall_score(binary_targets, predictions)
+            f1 = f1_score(binary_targets, predictions)
 
             if accuracy > best_accuracy:
                 best_accuracy = accuracy

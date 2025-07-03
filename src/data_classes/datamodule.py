@@ -111,7 +111,16 @@ class DataModule(LightningDataModule):
                 ego_involved=self.ego_involved,
                 color_space=self.color_space
             )
-            self.test_dataset = self.train_dataset
+            self.test_dataset =  UnsupervisedDataset(
+                self.path_to_data, 
+                'val', 
+                resize_target=(227, 227), 
+                crop_type=self.crop_type,
+                dataset_name=self.dataset,
+                ego_involved=self.ego_involved,
+                color_space=self.color_space,
+                include_anomalies=True
+            )
         else:
             if self.is_sequence:
                 self.train_dataset = VideoDataset(
@@ -130,7 +139,14 @@ class DataModule(LightningDataModule):
                     transform=self.transform,
                     target_transform=self.target_transform
                 )
-                self.test_dataset = self.train_dataset
+                self.test_dataset = VideoDataset(
+                    self.path_to_data,
+                    split='val',
+                    sequence_length=self.sequence_length,
+                    stride=self.stride,
+                    transform=self.transform,
+                    target_transform=self.target_transform
+                )
             else:
                 self.train_dataset = SupervisedDataset(
                     self.path_to_data, 

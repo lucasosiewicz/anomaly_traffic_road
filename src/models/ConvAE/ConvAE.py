@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import lightning as L
 from torch import optim
-from torchmetrics.functional.image import structural_similarity_index_measure
 
 
 class Encoder(nn.Module):
@@ -62,7 +61,7 @@ class Decoder(nn.Module):
     
 
 class ConvAE(L.LightningModule):
-    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=1, learning_rate=0.001, ssim_data_range=1.0):
+    def __init__(self, encoder=Encoder, decoder=Decoder, input_shape=1, learning_rate=0.001):
         super().__init__()
 
         torch.set_float32_matmul_precision('high')
@@ -71,10 +70,7 @@ class ConvAE(L.LightningModule):
         self.decoder = decoder(input_shape)
 
         self.learning_rate = learning_rate
-        self.ssim_data_range = ssim_data_range
-        self.criterion = lambda preds, target: 1.0 - structural_similarity_index_measure(
-            preds, target, data_range=self.ssim_data_range, reduction='none'
-        )
+        self.criterion = nn.MSELoss()
 
         self.reconstruction_error = []
         self.targets = []
@@ -87,25 +83,21 @@ class ConvAE(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, _ = batch
         x_hat = self(x)
-        # criterion returns per-sample losses (1 - SSIM for each image in the batch)
-        per_sample_loss = self.criterion(x_hat, x)
-        loss = per_sample_loss.mean() # Calculate the mean loss for the batch
+        loss = self.criterion(x_hat, x)
         self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
-        # criterion returns per-sample losses
-        per_sample_loss = self.criterion(x_hat, x)
-        loss = per_sample_loss.mean() # Calculate the mean loss for the batch
+        loss = self.criterion(x_hat, x)
         self.log("val_loss", loss, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         x_hat = self(x)
-        sample_losses = self.criterion(x_hat, x)
+        sample_losses = torch.mean((x_hat - x) ** 2, dim=tuple(range(1, x.ndim)))
         
         self.reconstruction_error.extend(sample_losses)
         self.targets.extend(y)
@@ -125,5 +117,18 @@ class ConvAE(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
-        return {'optimizer': optimizer}
+        scheduler = optim.lr_scheduler.CyclicLR(
+            optimizer,
+            base_lr=self.learning_rate / 10,
+            max_lr=self.learning_rate,
+            step_size_up=2000,
+            mode="triangular"
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step",
+            },
+        }
     

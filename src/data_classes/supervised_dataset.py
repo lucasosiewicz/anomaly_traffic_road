@@ -7,7 +7,16 @@ from torch.utils.data import Dataset
 import ast
 
 class SupervisedDataset(Dataset):
-    def __init__(self, path_to_data: str, which_set: str, resize_target: tuple = (227, 227), target_class: str | int = 'all', crop_type: str = None, dataset_name: str = 'DoTA', ego_involved: bool | None = None, color_space: str = 'gray'):
+    def __init__(self, 
+                 path_to_data: str, 
+                 which_set: str, 
+                 resize_target: tuple = (227, 227), 
+                 target_class: str | int = 'all', 
+                 crop_type: str = None, 
+                 dataset_name: str = 'DoTA', 
+                 ego_involved: bool | None = None, 
+                 color_space: str = 'gray',
+                 include_anomalies: bool = False):
 
         assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
@@ -19,6 +28,7 @@ class SupervisedDataset(Dataset):
         self.dataset_name = dataset_name
         self.ego_involved = ego_involved
         self.color_space = color_space
+        self.include_anomalies = include_anomalies
         self.images, self.labels = self.load_data(dataset_name, which_set)
 
     def __len__(self):
@@ -125,7 +135,7 @@ class SupervisedDataset(Dataset):
                     if not should_include:
                         continue
 
-                    if mapped_id != 0:
+                    if mapped_id != 0 and self.include_anomalies:
                         seen_anomaly_in_file = True
                         temp_images_for_file.append(image_path)
                         temp_targets_for_file.append(mapped_id)

@@ -7,7 +7,7 @@ data:
   crop_type: "none"
   target_class: 1
   ego_involved: null # null, true, or false
-  color_space: "rgb" # "gray" or "rgb"
+  color_space: "gray" # "gray" or "rgb"
 model:
   name: "ConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
   class_weights: [1,1]
@@ -22,7 +22,7 @@ logging:
   tracking_uri: "http://localhost:5000"
   log_model: True
   checkpoint_dir: "src/models/ConvAE/checkpoints/"
-  checkpoint_filename: "ConvAE-RGB-none-cropped-not-ego-involved-{epoch}-{val_loss:.2f}"
+  checkpoint_filename: "ConvAE-RGB-normal-{epoch}-{val_loss:.2f}"
 callbacks:
   early_stopping_patience: 3
 evaluation:

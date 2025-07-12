@@ -166,7 +166,15 @@ class DataModule(LightningDataModule):
                     ego_involved=self.ego_involved,
                     color_space=self.color_space
                 )
-                self.test_dataset = self.train_dataset
+                self.test_dataset = SupervisedDataset(
+                    self.path_to_data, 
+                    which_set='val', 
+                    target_class=self.target_class, 
+                    crop_type=self.crop_type,
+                    dataset_name=self.dataset,
+                    ego_involved=self.ego_involved,
+                    color_space=self.color_space
+                )
 
     def train_dataloader(self):
         return DataLoader(

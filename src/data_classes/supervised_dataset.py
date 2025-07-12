@@ -15,8 +15,7 @@ class SupervisedDataset(Dataset):
                  crop_type: str = None, 
                  dataset_name: str = 'DoTA', 
                  ego_involved: bool | None = None, 
-                 color_space: str = 'gray',
-                 include_anomalies: bool = False):
+                 color_space: str = 'gray'):
 
         assert which_set in ['train', 'val'], f"which_set must be one of ['train', 'val'], got {which_set}"
 
@@ -28,8 +27,12 @@ class SupervisedDataset(Dataset):
         self.dataset_name = dataset_name
         self.ego_involved = ego_involved
         self.color_space = color_space
-        self.include_anomalies = include_anomalies
         self.images, self.labels = self.load_data(dataset_name, which_set)
+        
+        if isinstance(self.target_class, int):
+            self.num_classes = 2
+        else:
+            self.num_classes = len(torch.unique(self.labels))
 
     def __len__(self):
         return len(self.images)
@@ -90,7 +93,6 @@ class SupervisedDataset(Dataset):
 
                 temp_images_for_file = []
                 temp_targets_for_file = []
-                seen_anomaly_in_file = False
 
                 for label in labels:
                     image_path_str = label.get('image_path')
@@ -119,7 +121,7 @@ class SupervisedDataset(Dataset):
                     elif original_accident_id == 10:
                         mapped_id = 5
                     else:
-                         continue
+                        continue
 
                     # Filter based on target_class parameter
                     if self.target_class == 'all':
@@ -135,20 +137,18 @@ class SupervisedDataset(Dataset):
                     if not should_include:
                         continue
 
-                    if mapped_id != 0 and self.include_anomalies:
-                        seen_anomaly_in_file = True
-                        temp_images_for_file.append(image_path)
-                        temp_targets_for_file.append(mapped_id)
-                    else:
-                        if seen_anomaly_in_file:
-                            break
-                        else:
-                            temp_images_for_file.append(image_path)
-                            temp_targets_for_file.append(0)
+                    # Remap labels for binary classification
+                    if isinstance(self.target_class, int):
+                        if mapped_id == self.target_class:
+                            mapped_id = 1
+                    
+                    # Simple logic: always include samples that pass filtering
+                    temp_images_for_file.append(image_path)
+                    temp_targets_for_file.append(mapped_id)
 
             images.extend(temp_images_for_file)
             targets.extend(temp_targets_for_file)
-
+            
         if not images:
             raise ValueError(f"No valid image files found in the set {which_set}")
 

@@ -27,14 +27,28 @@ def draw_historgram_of_errors(errors, labels, save_path=None):
     if save_path and not Path(save_path).exists():
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
-    labels_cpu = labels.cpu()
+    if isinstance(labels, torch.Tensor):
+        labels_cpu = labels.cpu()
+    else:
+        labels_cpu = labels
+        
     normal_indices = np.where(labels_cpu == 0)[0]
     anomaly_indices = np.where(labels_cpu != 0)[0]
 
+    # Check if we have samples of both types
+    if len(normal_indices) == 0 and len(anomaly_indices) == 0:
+        print("Warning: No samples to create histogram")
+        return
+    
     # Draw two histograms
     plt.figure(figsize=(10, 6))
-    plt.hist(errors[normal_indices], bins=50, alpha=0.5, color='blue', label='Normal')
-    plt.hist(errors[anomaly_indices], bins=50, alpha=0.5, color='red', label='Anomaly')
+    
+    if len(normal_indices) > 0:
+        plt.hist(errors[normal_indices], bins=50, alpha=0.5, color='blue', label='Normal')
+    
+    if len(anomaly_indices) > 0:
+        plt.hist(errors[anomaly_indices], bins=50, alpha=0.5, color='red', label='Anomaly')
+    
     plt.xlabel("Reconstruction error")
     plt.ylabel("Frequency")
     plt.legend()
@@ -97,23 +111,41 @@ def draw_histogram_of_errors_by_class(errors, labels, save_path=None):
         plt.savefig(Path(save_path) / 'histogram_of_errors_by_class.png')
 
 
-def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsupervised=True):
+def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsupervised=True, num_classes=None):
 
     if unsupervised:
         # Convert targets to binary: 0 (normal) vs 1 (anomaly)
-        binary_targets = np.where(targets.cpu().numpy() > 0, 1, 0)
+        if isinstance(targets, torch.Tensor):
+            binary_targets = np.where(targets.cpu().numpy() > 0, 1, 0)
+        else:
+            binary_targets = np.where(targets > 0, 1, 0)
         y_true = binary_targets
         y_pred = np.where(errors > threshold, 1, 0)
         labels = ['normal', 'anomaly']
         num_classes = 2
     
     else:
-        y_true = targets.cpu().numpy()
-        y_pred = torch.argmax(errors, dim=1).cpu().numpy()
-        num_classes = max(y_true.max(), y_pred.max()) + 1 
+        if isinstance(targets, torch.Tensor):
+            y_true = targets.cpu().numpy()
+        else:
+            y_true = targets
+            
+        if isinstance(errors, torch.Tensor):
+            y_pred = torch.argmax(errors, dim=1).cpu().numpy()
+        else:
+            y_pred = np.argmax(errors, axis=1)
+            
+        if num_classes is None:
+            num_classes = max(int(y_true.max()), int(y_pred.max())) + 1
+        
         labels = [str(i) for i in range(num_classes)]
 
-    cm = confusion_matrix(y_true, y_pred)
+    # Handle edge case where there are no samples
+    if len(y_true) == 0 or len(y_pred) == 0:
+        print("Warning: No samples to create confusion matrix")
+        return
+
+    cm = confusion_matrix(y_true, y_pred, labels=range(num_classes))
     plt.figure(figsize=(10, 7))
     plt.imshow(cm, interpolation='nearest', cmap='Blues')
     plt.title('Confusion Matrix')
@@ -123,7 +155,7 @@ def draw_confusion_matrix(errors, targets, threshold=0, save_path=None, unsuperv
     plt.yticks(tick_marks, labels)
 
     fmt = 'd'
-    thresh = cm.max() / 2.
+    thresh = cm.max() / 2. if cm.max() > 0 else 0.5
     for i, j in np.ndindex(cm.shape):
         plt.text(j, i, format(cm[i, j], fmt),
                  horizontalalignment="center",

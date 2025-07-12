@@ -6,7 +6,7 @@ import torchvision.models as models
 
 
 class ResNet(pl.LightningModule):
-    def __init__(self, input_shape=1, num_classes=2, learning_rate=0.0005, transform=None, freeze=True, class_weights=[1] * 6, weight_decay=0):
+    def __init__(self, input_shape=1, num_classes=2, learning_rate=0.0005, transform=None, freeze=True, class_weights=None, weight_decay=0):
         super(ResNet, self).__init__()
         self.save_hyperparameters()
 
@@ -15,9 +15,14 @@ class ResNet(pl.LightningModule):
         self.transform = transform
         self.learning_rate = learning_rate
         self.input_shape = input_shape
-        self.class_weights = class_weights
         self.weight_decay = weight_decay
         self.num_classes = num_classes
+        
+        # Set default class_weights if not provided
+        if class_weights is None:
+            self.class_weights = [1.0] * num_classes
+        else:
+            self.class_weights = class_weights
 
         self.model = models.resnet18(weights='DEFAULT')
 
@@ -27,9 +32,11 @@ class ResNet(pl.LightningModule):
                 param.requires_grad = False
 
         in_features = self.model.fc.in_features
-        self.model.fc = nn.Linear(in_features, num_classes if num_classes > 2 else 1)
+        # Always use num_classes for output size
+        self.model.fc = nn.Linear(in_features, num_classes)
+        
         self.model.conv1 = torch.nn.Conv2d(
-            in_channels=1,
+            in_channels=input_shape,
             out_channels=self.model.conv1.out_channels,
             kernel_size=self.model.conv1.kernel_size,
             stride=self.model.conv1.stride,
@@ -37,11 +44,12 @@ class ResNet(pl.LightningModule):
             bias=self.model.conv1.bias is not None
         )
 
-        # Define a loss function and metric
-        if len(self.class_weights) > 2:
+        # Define a loss function and metric - use num_classes consistently
+        if self.num_classes > 2:
             self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(self.class_weights, dtype=torch.float))
         else:
-            self.criterion = nn.BCEWithLogitsLoss()
+            # For binary classification, use CrossEntropyLoss with 2 classes
+            self.criterion = nn.CrossEntropyLoss(weight=torch.tensor(self.class_weights, dtype=torch.float))
         
         # Define metric
         if self.num_classes == 2:
@@ -68,19 +76,11 @@ class ResNet(pl.LightningModule):
         labels = labels.long()
         outputs = self(images)
         
-        # For binary classification with BCELoss, squeeze the output to match target shape
-        if self.num_classes == 2:
-            outputs = outputs.squeeze()
-            labels = labels.float()  # BCELoss expects float targets
-        
         loss = self.criterion(outputs, labels)
 
         # Calculate and log accuracy
-        if self.num_classes == 2:
-            predicted_classes = (torch.sigmoid(outputs) > 0.5).long()
-        else:
-            predicted_classes = torch.argmax(outputs, dim=1)
-        acc = self.accuracy(predicted_classes, labels.long())
+        predicted_classes = torch.argmax(outputs, dim=1)
+        acc = self.accuracy(predicted_classes, labels)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         self.log("train_acc", acc, prog_bar=True)
         return loss
@@ -90,18 +90,10 @@ class ResNet(pl.LightningModule):
         labels = labels.long()
         outputs = self(images)
         
-        # For binary classification with BCELoss, squeeze the output to match target shape
-        if self.num_classes == 2:
-            outputs = outputs.squeeze()
-            labels = labels.float()  # BCELoss expects float targets
-        
         loss = self.criterion(outputs, labels)
 
-        if self.num_classes == 2:
-            predicted_classes = (torch.sigmoid(outputs) > 0.5).long()
-        else:
-            predicted_classes = torch.argmax(outputs, dim=1)
-        acc = self.accuracy(predicted_classes, labels.long())
+        predicted_classes = torch.argmax(outputs, dim=1)
+        acc = self.accuracy(predicted_classes, labels)
         self.log("val_loss", loss)
         self.log("val_acc", acc, prog_bar=True)
 
@@ -112,30 +104,18 @@ class ResNet(pl.LightningModule):
         labels = labels.long()
         outputs = self(images)
         
-        # For binary classification with BCELoss, squeeze the output to match target shape
-        if self.num_classes == 2:
-            outputs = outputs.squeeze()
-            labels = labels.float()  # BCELoss expects float targets
-        
         loss = self.criterion(outputs, labels)
 
-        if self.num_classes == 2:
-            predicted_classes = (torch.sigmoid(outputs) > 0.5).long()
-            # For binary classification, create 2D probabilities [prob_class_0, prob_class_1]
-            prob_class_1 = torch.sigmoid(outputs)
-            prob_class_0 = 1 - prob_class_1
-            predicted_probs = torch.stack([prob_class_0, prob_class_1], dim=1)
-        else:
-            predicted_classes = torch.argmax(outputs, dim=1)
-            predicted_probs = torch.softmax(outputs, dim=1)
+        predicted_classes = torch.argmax(outputs, dim=1)
+        predicted_probs = torch.softmax(outputs, dim=1)
             
-        acc = self.accuracy(predicted_classes, labels.long())
+        acc = self.accuracy(predicted_classes, labels)
         self.log("test_loss", loss, on_epoch=True, prog_bar=True)
         self.log("test_acc", acc, prog_bar=True)
 
         # Save predictions and targets for later use
         self.reconstruction_error.append(predicted_probs)
-        self.targets.append(labels.long())
+        self.targets.append(labels)
 
     def on_test_epoch_start(self):
         self.reconstruction_error = []
@@ -153,4 +133,17 @@ class ResNet(pl.LightningModule):
     def configure_optimizers(self):
         params_to_train = filter(lambda p: p.requires_grad, self.parameters())
         optimizer = torch.optim.Adam(params_to_train, lr=self.learning_rate, weight_decay=self.weight_decay)
-        return {'optimizer': optimizer}
+        scheduler = torch.optim.lr_scheduler.CyclicLR(
+            optimizer,
+            base_lr=self.learning_rate / 10,
+            max_lr=self.learning_rate,
+            step_size_up=2000,
+            mode="triangular"
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step",
+            },
+        }

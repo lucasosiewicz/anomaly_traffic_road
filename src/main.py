@@ -48,6 +48,7 @@ def main():
     ego_involved = config['data']['ego_involved']
     color_space = config['data']['color_space']
     model_name = config['model']['name']
+    num_classes = config['model']['num_classes']
     class_weights = config['model']['class_weights']
     weight_decay = config['model']['weight_decay']
     epochs = config['trainer']['epochs']
@@ -67,8 +68,11 @@ def main():
     else:
         resolved_device = device
 
+    # Determine input channels based on color space
+    input_channels = 3 if color_space == 'rgb' else 1
+
     # Get model and related flags
-    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights, weight_decay)
+    model, is_unsupervised, is_sequence = get_model(model_name, learning_rate, class_weights, weight_decay, input_channels, num_classes)
 
     # Obliczanie liczby parametrów modelu
     num_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -184,7 +188,8 @@ def main():
             model.targets,
             best_threshold,
             save_path='src/plots',
-            unsupervised=is_unsupervised
+            unsupervised=is_unsupervised,
+            num_classes=model.num_classes if not is_unsupervised else None
         )
         mlflow.log_artifact('src/plots/confusion_matrix.png')
 

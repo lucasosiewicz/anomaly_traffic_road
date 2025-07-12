@@ -19,9 +19,17 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
             predictions = torch.where(reconstruction_error > threshold, 1, 0)
 
             accuracy = accuracy_score(binary_targets, predictions)
-            precision = precision_score(binary_targets, predictions)
-            recall = recall_score(binary_targets, predictions)
-            f1 = f1_score(binary_targets, predictions)
+            
+            # Handle edge cases for precision and recall
+            try:
+                precision = precision_score(binary_targets, predictions, zero_division=0)
+                recall = recall_score(binary_targets, predictions, zero_division=0)
+                f1 = f1_score(binary_targets, predictions, zero_division=0)
+            except ValueError:
+                # Handle cases where all predictions are one class
+                precision = 0
+                recall = 0
+                f1 = 0
 
             if accuracy > best_accuracy:
                 best_accuracy = accuracy
@@ -33,11 +41,29 @@ def count_best_threshold(reconstruction_error, targets, unsupervised=True):
         return best_threshold, best_accuracy, best_precision, best_recall, best_f1
     
     else:
-        reconstruction_error = torch.argmax(reconstruction_error, axis=1).cpu()
-        accuracy = accuracy_score(targets, reconstruction_error)
-        precision = precision_score(targets, reconstruction_error, average='macro')
-        recall = recall_score(targets, reconstruction_error, average='macro')
-        f1 = f1_score(targets, reconstruction_error, average='macro')
+        # For supervised models, the 'reconstruction_error' is actually model logits or probabilities
+        y_pred_probs = reconstruction_error
+        
+        # Determine number of classes from the output shape
+        num_classes = y_pred_probs.shape[1]
+        
+        predictions = torch.argmax(y_pred_probs, axis=1).cpu()
+        targets = targets.cpu()
+        
+        accuracy = accuracy_score(targets, predictions)
+        
+        # Use 'binary' averaging for binary classification, 'macro' for multiclass
+        average_method = 'binary' if num_classes == 2 else 'macro'
+        
+        # Handle edge cases for multiclass metrics
+        try:
+            precision = precision_score(targets, predictions, average=average_method, zero_division=0)
+            recall = recall_score(targets, predictions, average=average_method, zero_division=0)
+            f1 = f1_score(targets, predictions, average=average_method, zero_division=0)
+        except ValueError:
+            precision = 0
+            recall = 0
+            f1 = 0
 
         return 0, accuracy, precision, recall, f1
 
@@ -63,8 +89,11 @@ def measure_single_sample_inference_time(model, dataloader, device, is_unsupervi
             return None
         single_sample = sample_batch[0].unsqueeze(0)
 
-    model = model.to(device)
+    # Ensure model is on the correct device
+    if next(model.parameters()).device != torch.device(device):
+        model = model.to(device)
     single_sample = single_sample.to(device)
+    
     model.eval()
     with torch.no_grad():
         start_inference_time = time.time()

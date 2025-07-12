@@ -1,16 +1,18 @@
 data:
   path: "D:/MAGISTERKA/anomaly_traffic_road/datasets/DoTA"
   dataset: "DoTA"
-  batch_size: 64
+  batch_size: 32
   sequence_length: 4
   stride: 1
   crop_type: "none"
-  target_class: 1
+  target_class: 5
   ego_involved: null # null, true, or false
   color_space: "gray" # "gray" or "rgb"
 model:
-  name: "ConvAE" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
-  class_weights: [1,1]
+  name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
+  num_classes: 2 # 2 when target_class is set, 6 for all
+  class_weights: [1.0, 1.0]  # for binary case
+  # class_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # 6 classes: 0, 1, 2, 3, 4, 5
   weight_decay: 0
 trainer:
   epochs: 100
@@ -18,11 +20,11 @@ trainer:
   learning_rate: 0.001
 logging:
   experiment_name: "DoTA-dataset-new"
-  run_name: "ConvAE-RGB-none-cropped-not-ego-involved"
+  run_name: "ResNet-gray-none-cropped-not-ego-involved"
   tracking_uri: "http://localhost:5000"
   log_model: True
-  checkpoint_dir: "src/models/ConvAE/checkpoints/"
-  checkpoint_filename: "ConvAE-RGB-normal-{epoch}-{val_loss:.2f}"
+  checkpoint_dir: "src/models/ResNet/checkpoints/"
+  checkpoint_filename: "ResNet-gray-normal-{epoch}-{val_loss:.2f}"
 callbacks:
   early_stopping_patience: 3
 evaluation:

@@ -12,7 +12,7 @@ class UnsupervisedDataset(Dataset):
     def __init__(self, 
                  path_to_data: str, 
                  which_set: str, 
-                 resize_target: tuple = (224, 224), 
+                 resize_target: tuple = (256, 256), 
                  crop_type: str = None, 
                  color_space: str = 'gray', 
                  dataset_name: str = 'DoTA', 

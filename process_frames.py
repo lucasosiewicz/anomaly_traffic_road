@@ -31,16 +31,22 @@ def run_v2e_for_folder(v2e_script_path, input_images_dir, output_base_dir, fps):
     num_frames = len(frame_files)
     print(f"Znaleziono {num_frames} plików JPG.")
 
-    # --- Konfiguracja Parametrów V2E (Wersja sprzed Colab) ---
+    # --- Konfiguracja Parametrów V2E (Poprawiona dla nagrań wideo) ---
     overwrite = True
     output_video_filename = "dvs-video.avi"
     skip_video_output = False # Nadal potrzebujemy wideo do ekstrakcji
     disable_slomo = True
-    # Parametry czasowe powiązane z liczbą klatek
-    dvs_exposure_duration = 1.0 / num_frames if num_frames > 0 else 0.01 # Unikamy dzielenia przez zero
-    input_rate = num_frames # Używamy liczby klatek dla input_rate
-    avi_rate = num_frames # Używamy liczby klatek dla avi_rate
-    dvs_vid_full_scale = "1" # Zachowujemy z poprzedniej próby poprawy szarych klatek
+    
+    # Parametry czasowe poprawione dla nagrań wideo
+    dvs_exposure_duration = 0.005  # Stała ekspozycja 5ms (typowa dla DVS)
+    input_rate = fps  # Używamy rzeczywistego FPS
+    avi_rate = fps    # Używamy rzeczywistego FPS
+    
+    # Parametry DVS dla lepszej jakości
+    pos_thres = 0.2   # Próg dla pozytywnych zdarzeń
+    neg_thres = 0.2   # Próg dla negatywnych zdarzeń
+    sigma_thres = 0.03  # Próg szumu
+    dvs_vid_full_scale = "1"
 
     # --- Budowanie Polecenia V2E --- 
     command = [sys.executable, v2e_script_path]
@@ -71,8 +77,14 @@ def run_v2e_for_folder(v2e_script_path, input_images_dir, output_base_dir, fps):
     if disable_slomo:
         command.append("--disable_slomo")
     
-    # Nie ustawiamy jawnie parametrów modelu DVS (pos_thres, sigma_thres itp.)
-    # Pozwalamy v2e użyć swoich domyślnych wartości
+    # Parametry DVS dla lepszej jakości i usunięcia szarych klatek
+    command.extend(["--pos_thres", str(pos_thres)])
+    command.extend(["--neg_thres", str(neg_thres)])
+    command.extend(["--sigma_thres", str(sigma_thres)])
+    
+    # Dodatkowe parametry dla stabilności
+    command.extend(["--auto_timestamp_resolution", "True"])
+    command.extend(["--dvs_emulator_seed", "0"])  # Dla powtarzalności
 
     # --- Uruchomienie V2E --- 
     print(f"Uruchamianie polecenia V2E dla {input_images_dir}:\n    {' '.join(command)}")

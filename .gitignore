@@ -10,5 +10,6 @@ src/models/ResNet/checkpoints
 src/models/ResNetLSTM/checkpoints
 src/models/LargerConvAE/checkpoints
 src/models/FineGrained/checkpoints
+src/models/GANomaly/checkpoints
 Day-Night-Classifier/
 v2e

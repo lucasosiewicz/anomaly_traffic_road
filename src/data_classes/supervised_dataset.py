@@ -10,7 +10,7 @@ class SupervisedDataset(Dataset):
     def __init__(self, 
                  path_to_data: str, 
                  which_set: str, 
-                 resize_target: tuple = (227, 227), 
+                 resize_target: tuple = (256, 256), 
                  target_class: str | int = 'all', 
                  crop_type: str = None, 
                  dataset_name: str = 'DoTA', 

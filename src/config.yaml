@@ -7,9 +7,9 @@ data:
   crop_type: "none"
   target_class: 5
   ego_involved: null # null, true, or false
-  color_space: "gray" # "gray" or "rgb"
+  color_space: "rgb" # "gray" or "rgb"
 model:
-  name: "ResNet" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained
+  name: "GANomaly" # ConvAE, ResNet, ResNetLSTM, LargerConvAE, FineGrained, GANomaly
   num_classes: 2 # 2 when target_class is set, 6 for all
   class_weights: [1.0, 1.0]  # for binary case
   # class_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # 6 classes: 0, 1, 2, 3, 4, 5

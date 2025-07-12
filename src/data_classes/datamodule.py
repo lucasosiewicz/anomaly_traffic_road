@@ -9,7 +9,7 @@ import numpy as np
 import psutil
 import os
 
-def calculate_dataloader_params(batch_size, img_size=(227, 227), image_channels=3, sequence_length=16, precision=32, ram_fraction=0.8):
+def calculate_dataloader_params(batch_size, img_size=(256, 256), image_channels=3, sequence_length=16, precision=32, ram_fraction=0.8):
     """
     Function calculates the number of workers and prefetch factor
     for DataLoader based on the available RAM.
@@ -80,7 +80,7 @@ class DataModule(LightningDataModule):
         # Parametry dla DataLoadera bez wielowątkowości
         self.params = calculate_dataloader_params(
             batch_size=self.batch_size,
-            img_size=(227, 227),
+            img_size=(256, 256),
             image_channels=1,
             sequence_length=self.sequence_length,
             precision=32,
@@ -96,7 +96,7 @@ class DataModule(LightningDataModule):
             self.train_dataset = UnsupervisedDataset(
                 self.path_to_data, 
                 'train', 
-                resize_target=(227, 227), 
+                resize_target=(256, 256), 
                 crop_type=self.crop_type,
                 dataset_name=self.dataset,
                 ego_involved=self.ego_involved,
@@ -105,7 +105,7 @@ class DataModule(LightningDataModule):
             self.val_dataset = UnsupervisedDataset(
                 self.path_to_data, 
                 'val', 
-                resize_target=(227, 227), 
+                resize_target=(256, 256), 
                 crop_type=self.crop_type,
                 dataset_name=self.dataset,
                 ego_involved=self.ego_involved,
@@ -114,7 +114,7 @@ class DataModule(LightningDataModule):
             self.test_dataset =  UnsupervisedDataset(
                 self.path_to_data, 
                 'val', 
-                resize_target=(227, 227), 
+                resize_target=(256, 256), 
                 crop_type=self.crop_type,
                 dataset_name=self.dataset,
                 ego_involved=self.ego_involved,

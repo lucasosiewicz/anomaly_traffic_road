@@ -169,7 +169,7 @@ class GANomaly(pl.LightningModule):
                  self.hparams.w_enc * Lenc
         self.manual_backward(loss_g)
         opt_g.step()
-        self.log('loss_g', loss_g, prog_bar=True)
+        self.log('train_loss', loss_g, on_epoch=True, prog_bar=False)
         self.log('Ladv', Ladv, prog_bar=False)
         self.log('Lcon', Lcon, prog_bar=False)
         self.log('Lenc', Lenc, prog_bar=False)

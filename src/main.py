@@ -82,13 +82,13 @@ def main():
     callbacks = [
         PrintMetricsCallback(),
         EarlyStopping(monitor='val_loss', patience=early_stopping_patience, mode='min'),
-        ModelCheckpoint(
-            monitor='val_loss',
-            mode='min',
-            save_top_k=1,
-            dirpath=checkpoint_dir,
-            filename=checkpoint_filename
-        )
+        #ModelCheckpoint(
+        #    monitor='val_loss',
+        #    mode='min',
+        #    save_top_k=1,
+        #    dirpath=checkpoint_dir,
+        #    filename=checkpoint_filename
+        #)
     ]
 
     # Setup Logger
